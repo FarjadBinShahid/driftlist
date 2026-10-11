@@ -1,5 +1,17 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Widgets
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Switch
+import dev.farjad.driftlist.data.db.WidgetEntity
+import dev.farjad.driftlist.system.widgets.WidgetHostManager
 import android.graphics.Rect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -89,6 +101,11 @@ fun AppPopupCard(
     onShortcutLongPress: (ShortcutInfoItem) -> Unit,
     onClose: () -> Unit,
     quickReplies: Boolean = true,
+    popupApps: List<AppEntity> = emptyList(),
+    widgets: List<WidgetEntity> = emptyList(),
+    widgetHost: WidgetHostManager? = null,
+    onLaunchApp: (AppEntity) -> Unit = {},
+    onEdit: (() -> Unit)? = null,
 ) {
     val density = LocalDensity.current
     val position = remember(anchor) {
@@ -125,8 +142,17 @@ fun AppPopupCard(
                         style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurface),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.semantics { heading() },
+                        modifier = Modifier.weight(1f).semantics { heading() },
                     )
+                    if (onEdit != null) {
+                        IconButton(onClick = onEdit) { Icon(Icons.Outlined.Edit, contentDescription = "Edit this pop-up") }
+                    }
+                }
+                if (widgets.isNotEmpty() && widgetHost != null) {
+                    WidgetStack(widgets, widgetHost, Modifier.padding(horizontal = SpaceTokens.s3).padding(bottom = SpaceTokens.s3))
+                }
+                if (popupApps.isNotEmpty()) {
+                    PopupAppGrid(popupApps, icons, onLaunchApp)
                 }
                 LazyColumn(
                     contentPadding = PaddingValues(start = SpaceTokens.s3, end = SpaceTokens.s3, bottom = SpaceTokens.s3),
@@ -145,7 +171,7 @@ fun AppPopupCard(
                     if (notifications.isNotEmpty() && shortcuts.isNotEmpty()) {
                         item { HorizontalDivider(Modifier.padding(vertical = SpaceTokens.s2)) }
                     }
-                    if (notifications.isEmpty() && shortcuts.isEmpty()) {
+                    if (notifications.isEmpty() && shortcuts.isEmpty() && popupApps.isEmpty() && widgets.isEmpty()) {
                         item {
                             Text(
                                 "Nothing new, and no shortcuts.",
@@ -234,4 +260,79 @@ fun ShortcutFolderDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
     )
+}
+
+/** Apps the user placed inside this pop-up, four to a row. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PopupAppGrid(apps: List<AppEntity>, icons: IconCache, onLaunch: (AppEntity) -> Unit) {
+    FlowRow(
+        Modifier.fillMaxWidth().padding(horizontal = SpaceTokens.s3, vertical = SpaceTokens.s2),
+        maxItemsInEachRow = POPUP_GRID_COLUMNS,
+    ) {
+        apps.forEach { app ->
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(RadiusTokens.md))
+                    .clickable(onClickLabel = "Open ${app.label}") { onLaunch(app) }
+                    .padding(vertical = SpaceTokens.s2),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                AppIcon(app.id, icons, SizeTokens.iconPopup)
+                Text(
+                    app.label,
+                    style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurface),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = SpaceTokens.s1),
+                )
+            }
+        }
+        // Keep the last row's tiles the same width as the others.
+        repeat((POPUP_GRID_COLUMNS - apps.size % POPUP_GRID_COLUMNS) % POPUP_GRID_COLUMNS) { Spacer(Modifier.weight(1f)) }
+    }
+    HorizontalDivider(Modifier.padding(horizontal = SpaceTokens.s5, vertical = SpaceTokens.s2))
+}
+
+private const val POPUP_GRID_COLUMNS = 4
+
+/** S10 editor: what an app's pop-up shows (apps, a widget, its shortcuts). */
+@Composable
+fun PopupEditorSheet(
+    app: AppEntity,
+    apps: List<AppEntity>,
+    selected: Set<String>,
+    icons: IconCache,
+    widgetCount: Int,
+    shortcutsShown: Boolean,
+    onToggleApp: (AppEntity) -> Unit,
+    onToggleShortcuts: () -> Unit,
+    onAddWidget: () -> Unit,
+    onRemoveWidget: () -> Unit,
+    onClose: () -> Unit,
+) {
+    DriftSheet(onClose) {
+        Column(Modifier.fillMaxHeight(0.9f)) {
+            SheetTitle("${app.label} pop-up")
+            CardRow(
+                "App shortcuts",
+                Icons.Outlined.Bolt,
+                onToggleShortcuts,
+                supporting = "Show the shortcuts the app offers",
+                trailing = { Switch(checked = shortcutsShown, onCheckedChange = null) },
+            )
+            if (widgetCount == 0) {
+                CardRow("Add a widget", Icons.Outlined.Widgets, onAddWidget, supporting = "Shown at the top of this pop-up")
+            } else {
+                CardRow("Remove widget", Icons.Outlined.Delete, onRemoveWidget)
+            }
+            Text(
+                "Apps in this pop-up",
+                style = TypeTokens.label.style(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.padding(start = SpaceTokens.s7, top = SpaceTokens.s5, bottom = SpaceTokens.s2).semantics { heading() },
+            )
+            AppMultiPicker(apps.filter { it.id != app.id }, icons, selected, onToggleApp)
+        }
+    }
 }

@@ -59,6 +59,10 @@ data class SettingsSnapshot(
     val torchReminder: Boolean = true,
     /** Show the header widget(s) in place of the clock. */
     val replaceClock: Boolean = false,
+    /** Apps whose pop-up leaves out the app's shortcuts. */
+    val shortcutsHidden: Set<String> = emptySet(),
+    /** Favorites folders also listed as categories at the end of the A-Z list. */
+    val foldersInList: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -92,6 +96,8 @@ class Settings(private val context: Context) {
         val plugAndPlay = booleanPreferencesKey("plug_and_play")
         val torchReminder = booleanPreferencesKey("torch_reminder")
         val replaceClock = booleanPreferencesKey("replace_clock")
+        val shortcutsHidden = stringSetPreferencesKey("shortcuts_hidden")
+        val foldersInList = booleanPreferencesKey("folders_in_list")
     }
 
     private val booleanKeys = mapOf(
@@ -117,6 +123,7 @@ class Settings(private val context: Context) {
         "plug_and_play" to Keys.plugAndPlay,
         "torch_reminder" to Keys.torchReminder,
         "replace_clock" to Keys.replaceClock,
+        "folders_in_list" to Keys.foldersInList,
     )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -151,6 +158,8 @@ class Settings(private val context: Context) {
             plugAndPlay = p[Keys.plugAndPlay] ?: true,
             torchReminder = p[Keys.torchReminder] ?: true,
             replaceClock = p[Keys.replaceClock] ?: false,
+            shortcutsHidden = p[Keys.shortcutsHidden].orEmpty(),
+            foldersInList = p[Keys.foldersInList] ?: false,
         )
     }
 
@@ -179,6 +188,11 @@ class Settings(private val context: Context) {
         it[Keys.headerPosition] = ratio.coerceIn(SizeTokens.headerPositionMin, SizeTokens.headerPositionMax)
     }
 
+    suspend fun setShortcutsHidden(appId: String, hidden: Boolean) = context.dataStore.edit {
+        val current = it[Keys.shortcutsHidden].orEmpty()
+        it[Keys.shortcutsHidden] = if (hidden) current + appId else current - appId
+    }
+
     suspend fun setCalendarHidden(id: Long, hidden: Boolean) = context.dataStore.edit {
         val current = it[Keys.hiddenCalendars].orEmpty()
         it[Keys.hiddenCalendars] = if (hidden) current + id.toString() else current - id.toString()
@@ -205,6 +219,9 @@ class Settings(private val context: Context) {
         (values["look"] as? String)?.let { p[Keys.look] = it }
         (values["search_engine"] as? String)?.let { p[Keys.searchEngine] = it }
         (values["button_swipe_target"] as? String)?.let { p[Keys.buttonSwipeTarget] = it }
+        (values["shortcuts_hidden"] as? org.json.JSONArray)?.let { arr -> p[Keys.shortcutsHidden] = (0 until arr.length()).map(arr::getString).toSet() }
+        @Suppress("UNCHECKED_CAST")
+        (values["shortcuts_hidden"] as? Collection<String>)?.let { p[Keys.shortcutsHidden] = it.toSet() }
         (values["header_position"] as? Number)?.let { p[Keys.headerPosition] = it.toFloat() }
     }
 }

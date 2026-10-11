@@ -16,7 +16,7 @@ Swipe right on app opens app pop-up,pop-ups,must,yes,yes,M3a: floating card anch
 Notifications in app pop-up: expand and dismiss,notifications,must,yes,yes,"M2: full text, swipe-left dismiss, action buttons"
 Inline reply to notifications from home,notifications,must,yes,yes,M2: verified end to end with an SMS on the emulator
 App shortcuts in app pop-up,pop-ups,must,yes,yes,M2: needs Driftlist to be the default launcher
-Hide shortcuts per app,pop-ups,could,yes,no,free; help 84
+Hide shortcuts per app,pop-ups,could,yes,yes,M4: pop-up editor > App shortcuts switch
 Swipe down anywhere opens notification shade,gestures,must,yes,yes,free; help 98
 Long swipe up opens search (quick swipe scrolls),gestures,must,yes,yes,M2
 HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,yes,M3b: an app opened from the list and Home within 3 s lands back on the list where you left it (verified on emulator)
@@ -26,8 +26,8 @@ Hide app from app list + hidden apps screen,wellbeing,must,yes,yes,M2
 Edit favorites: reorder / add / remove,home,must,yes,yes,M2: drag handle + TalkBack move actions
 Suggested apps (most used) below favorites; long-press to hide,home,should,yes,yes,M3b: top 3 most-opened non-favorites under a Suggested heading; Stop suggesting in the long-press sheet; toggle in Home screen settings
 Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,yes,M3a: long-press a shortcut in an app pop-up to add it to a folder; shortcuts are pinned and backed up; verified on the emulator
-Pop-up folders shown as categories in app list,pop-ups,could,yes,no,pro
-Customizable app pop-ups (used like folders),pop-ups,could,yes,no,pro
+Pop-up folders shown as categories in app list,pop-ups,could,yes,yes,M4: Settings > Home screen > Folders in the app list (a Folders section at the end of A-Z)
+Customizable app pop-ups (used like folders),pop-ups,could,yes,yes,"M4: Edit pop-up (pencil in the pop-up, or More in the long-press sheet): apps shown four to a row inside the app's pop-up; UI test"
 Search apps,search,must,yes,yes,"M2: prefix, word, initials, substring; accents ignored"
 Integrated calculator in search,search,should,yes,yes,"M4: + - × ÷ ^ %, brackets, sqrt, pi; phone symbols and decimal comma; Copy; unit-tested parser, UI test"
 Web search suggestions with engine choice,search,should,yes,yes,"M4: seven engines or the browser default; live suggestions from the engine's autocomplete, opt-in and off by default (INTERNET used only for this)"
@@ -58,7 +58,7 @@ Clock styles,theming,should,yes,yes,"M3b: five of our own: Thin, Bold, Stacked, 
 Replace clock with widget,widgets,could,yes,yes,M4: header sheet switch or Settings > Home screen; Header options button stays reachable
 Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + configure verified with the Clock widget
 Widget stacks (up to 4 / swipe to switch),widgets,should,yes,yes,M3b: pager with dots and accessibility next/previous; header sheet adds or removes the page you're on
-Widgets inside app pop-ups and folders,widgets,could,yes,no,pro
+Widgets inside app pop-ups and folders,widgets,could,yes,yes,"M4: Add widget in a folder or the pop-up editor; up to four, swipeable; removed with the folder"
 Two-column layout on foldables / tablets,layout,could,yes,yes,"M4: on screens 600 dp+ wide or in landscape, header on the left and favorites on the right"
 Landscape support,layout,could,yes,yes,M4: side-by-side layout fixes BUG-011; UI test rotates and checks the last favorite is on screen
 Calendar upcoming events on home + agenda sheet,widgets,should,yes,yes,"2026-10-12 (user asked for it after all): next event under the date in its calendar colour; tap the date for a 7-day agenda with New event / Open calendar; switch in the header sheet and Home screen settings; READ_CALENDAR asked when switched on, explainer only after Android stops asking"

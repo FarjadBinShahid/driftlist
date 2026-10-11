@@ -1,5 +1,8 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.DashboardCustomize
+import dev.farjad.driftlist.data.db.WidgetEntity
+import dev.farjad.driftlist.system.widgets.WidgetHostManager
 import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.UnfoldMore
@@ -325,6 +328,7 @@ fun AppOptionsSheet(
     isSuggestion: Boolean = false,
     onStopSuggesting: () -> Unit = {},
     onScreenTime: (() -> Unit)? = null,
+    onEditPopup: (() -> Unit)? = null,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
@@ -369,6 +373,7 @@ fun AppOptionsSheet(
             if (advanced) {
                 OptionRow("Rename", { renaming = true }, icon = Icons.Outlined.Edit)
                 OptionRow("Change icon", onChangeIcon, icon = Icons.Outlined.Image)
+                onEditPopup?.let { OptionRow("Edit pop-up", it, icon = Icons.Outlined.DashboardCustomize, supporting = "Apps, a widget and shortcuts in this app's pop-up") }
                 OptionRow(
                     if (app.hidden) "Show in app list" else "Hide from app list",
                     onToggleHidden,
@@ -396,11 +401,22 @@ fun FolderSheet(
     onRemoveShortcut: (ShortcutEntity) -> Unit,
     onEdit: () -> Unit,
     onClose: () -> Unit,
+    widgets: List<WidgetEntity> = emptyList(),
+    widgetHost: WidgetHostManager? = null,
+    onAddWidget: (() -> Unit)? = null,
+    onRemoveWidget: (() -> Unit)? = null,
 ) {
     DriftSheet(onClose) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             SheetTitle(title, Modifier.weight(1f))
+            if (widgets.isEmpty() && onAddWidget != null) {
+                TextButton(onClick = onAddWidget) { Text("Add widget") }
+            }
             TextButton(onClick = onEdit, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text("Edit") }
+        }
+        if (widgets.isNotEmpty() && widgetHost != null) {
+            WidgetStack(widgets, widgetHost, Modifier.padding(horizontal = SpaceTokens.s7))
+            onRemoveWidget?.let { TextButton(onClick = it, modifier = Modifier.padding(start = SpaceTokens.s5)) { Text("Remove widget") } }
         }
         if (apps.isEmpty() && shortcuts.isEmpty()) {
             Text(

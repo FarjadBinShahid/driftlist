@@ -1,5 +1,7 @@
 package dev.farjad.driftlist.ui
 
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.accessibility.enableAccessibilityChecks
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
@@ -136,6 +138,26 @@ class HomeFlowsTest {
             ui.setRotation(android.app.UiAutomation.ROTATION_FREEZE_0)
             ui.setRotation(android.app.UiAutomation.ROTATION_UNFREEZE)
             runBlocking { TestState.container.settings.setFlag("allow_rotation", false) }
+        }
+    }
+
+    // F09-H3: apps placed inside an app's pop-up show there, and nowhere on home
+    @OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
+    @Test
+    fun appPopupShowsAppsPlacedInsideIt() {
+        TestState.reset(favorites = listOf("Clock")) { c ->
+            val clock = TestState.app("Clock")
+            val calendar = TestState.app("Calendar")
+            val id = dev.farjad.driftlist.ui.home.APP_POPUP_FOLDER + clock.id
+            c.db.folderDao().insertFolder(dev.farjad.driftlist.data.db.PopupFolderEntity(id, "Clock", createdAt = 1, updatedAt = 1))
+            c.db.folderDao().setApps(id, listOf(calendar.id), 1)
+        }
+        home {
+            waitForText("Clock")
+            assertTrue(onAllNodes(hasText("Calendar")).fetchSemanticsNodes().isEmpty())
+            onNodeWithText("Clock").performCustomAccessibilityActionWithLabel("Notifications and shortcuts")
+            waitForText("Calendar")
+            onNodeWithContentDescription("Edit this pop-up").assertIsDisplayed()
         }
     }
 

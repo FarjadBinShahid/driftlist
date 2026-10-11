@@ -93,6 +93,9 @@ data class HomeUiState(
     val notifications: Map<AppKey, List<NotifItem>> = emptyMap(),
     val setup: SetupStatus = SetupStatus(),
     val headerWidgets: List<WidgetEntity> = emptyList(),
+    /** Widgets in folders and app pop-ups, by stack id. */
+    val stackWidgets: Map<String, List<WidgetEntity>> = emptyMap(),
+    val popupApps: Map<String, List<AppEntity>> = emptyMap(),
     val settings: SettingsSnapshot = SettingsSnapshot(),
     /** Most-used apps that aren't favorites, shown under them (the reference's "suggestions"). */
     val suggestions: List<AppEntity> = emptyList(),
@@ -114,7 +117,14 @@ private data class Library(
     val apps: List<AppEntity>,
     val list: AppListModel,
     val favorites: List<HomeEntry>,
+    /** Apps the user put inside another app's pop-up, by owner app id. */
+    val popupApps: Map<String, List<AppEntity>> = emptyMap(),
 )
+
+/** Folder ids for "apps inside an app's pop-up"; never on home. */
+const val APP_POPUP_FOLDER = "apppopup:"
+fun folderStack(folderId: String) = "folder:$folderId"
+fun appStack(appId: String) = "app:$appId"
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as DriftlistApp).container
@@ -154,7 +164,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 else -> null
             }
         }
-        Library(apps, buildList(apps.filterNot { it.hidden }), favorites)
+        val popupApps = folders.filter { it.id.startsWith(APP_POPUP_FOLDER) }
+            .associate { it.id.removePrefix(APP_POPUP_FOLDER) to folderApps[it.id].orEmpty() }
+        Library(apps, buildList(apps.filterNot { it.hidden }), favorites, popupApps)
     }.flowOn(Dispatchers.Default)
 
     val state: StateFlow<HomeUiState> = combine(
@@ -162,9 +174,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             library,
             container.notifications.items,
             setup,
-            db.widgetDao().observeHeaderWidgets(),
+            combine(db.widgetDao().observeHeaderWidgets(), db.widgetDao().observeOtherWidgets(), ::Pair),
             container.settings.flow,
-        ) { lib, notifications, setup, header, settings ->
+        ) { lib, notifications, setup, (header, others), settings ->
             val favoriteIds = lib.favorites.filterIsInstance<HomeEntry.App>().mapTo(HashSet()) { it.app.id }
             val nowMs = System.currentTimeMillis()
             HomeUiState(
@@ -178,6 +190,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 notifications = notifications,
                 setup = setup,
                 headerWidgets = header,
+                stackWidgets = others.groupBy { it.stackId },
+                popupApps = lib.popupApps,
                 settings = settings,
                 suggestions = if (!settings.suggestApps) emptyList() else lib.apps
                     .filter { !it.hidden && !it.hiddenFromSuggestions && it.id !in favoriteIds && it.launchCount > 0 }
@@ -369,9 +383,42 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             when (entry) {
                 is HomeEntry.App -> homeDao.remove(entry.itemId)
-                is HomeEntry.Folder -> folderDao.delete(entry.folder.id) // cascades to the home row
+                is HomeEntry.Folder -> {
+                    folderDao.delete(entry.folder.id) // cascades to the home row
+                    dropStack(folderStack(entry.folder.id))
+                }
             }
         }
+    }
+
+    /** Removes a folder's or pop-up's widgets and gives their ids back to the system. */
+    private suspend fun dropStack(stackId: String) {
+        db.widgetDao().widgetsIn(stackId).forEach { w ->
+            db.widgetDao().deleteWidget(w.appWidgetId)
+            widgetHost.release(w.appWidgetId)
+        }
+        db.widgetDao().deleteStack(stackId)
+    }
+
+    // --- app pop-ups -----------------------------------------------------------------------------
+
+    /** Sets the apps shown inside [owner]'s pop-up. An empty list removes them. */
+    fun setPopupApps(owner: AppEntity, appIds: List<String>) {
+        viewModelScope.launch {
+            val id = APP_POPUP_FOLDER + owner.id
+            if (appIds.isEmpty()) {
+                folderDao.delete(id)
+                return@launch
+            }
+            if (folderDao.folders().none { it.id == id }) {
+                folderDao.insertFolder(PopupFolderEntity(id, owner.label, createdAt = now, updatedAt = now))
+            }
+            folderDao.setApps(id, appIds, now)
+        }
+    }
+
+    fun setShortcutsHidden(app: AppEntity, hidden: Boolean) {
+        viewModelScope.launch { container.settings.setShortcutsHidden(app.id, hidden) }
     }
 
     fun createFolder(title: String, appIds: List<String>) {
@@ -445,6 +492,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bindWidgetIntent(appWidgetId: Int, provider: android.appwidget.AppWidgetProviderInfo): Intent? =
         widgetHost.bindOrIntent(appWidgetId, provider)
+
+    /** Adds to a folder's or an app pop-up's stack; [stackId] from [folderStack] or [appStack]. */
+    fun saveStackWidget(appWidgetId: Int, stackId: String) {
+        val info = widgetHost.info(appWidgetId) ?: return widgetHost.release(appWidgetId)
+        val location = if (stackId.startsWith("app:")) "app_popup" else "folder"
+        viewModelScope.launch {
+            val added = db.widgetDao().addWidgetTo(stackId, location, appWidgetId, info.provider.flattenToString(), widgetHost.serialOf(info.profile), now)
+            if (!added) widgetHost.release(appWidgetId)
+        }
+    }
 
     /** Adds to the header stack (up to 4 widgets). */
     fun saveHeaderWidget(appWidgetId: Int) {

@@ -258,6 +258,38 @@ abstract class WidgetDao {
     )
     abstract fun observeHeaderWidgets(): Flow<List<WidgetEntity>>
 
+    /** Widgets in folders and app pop-ups (stack ids "folder:<id>" and "app:<appId>"). */
+    @Query(
+        """
+        select widget.* from widget
+        join widget_stack on widget_stack.id = widget.stack_id
+        where widget_stack.location != 'header'
+        order by widget.position
+        """,
+    )
+    abstract fun observeOtherWidgets(): Flow<List<WidgetEntity>>
+
+    @Query("select * from widget_stack where id = :id")
+    abstract suspend fun stack(id: String): WidgetStackEntity?
+
+    @Query("select * from widget where stack_id = :stackId")
+    abstract suspend fun widgetsIn(stackId: String): List<WidgetEntity>
+
+    @Query("delete from widget_stack where id = :id")
+    abstract suspend fun deleteStack(id: String)
+
+    /** Adds a widget to a named stack, creating it if needed (max 4). False when full. */
+    @Transaction
+    open suspend fun addWidgetTo(stackId: String, location: String, appWidgetId: Int, provider: String, userSerial: Long, now: Long): Boolean {
+        if (stack(stackId) == null) insertStack(WidgetStackEntity(stackId, location, createdAt = now, updatedAt = now))
+        val count = countIn(stackId)
+        if (count >= MAX_STACK) return false
+        insertWidget(
+            WidgetEntity(UUID.randomUUID().toString(), stackId, appWidgetId, provider, userSerial, position = count, createdAt = now, updatedAt = now),
+        )
+        return true
+    }
+
     @Query("select * from widget_stack")
     abstract suspend fun stacks(): List<WidgetStackEntity>
 

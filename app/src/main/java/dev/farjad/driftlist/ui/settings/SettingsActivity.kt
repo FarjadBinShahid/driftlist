@@ -420,6 +420,11 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
             }
         }
         item {
+            ToggleRow("Folders in the app list", "Your favorites folders also appear at the end of the A-Z list", s.foldersInList) {
+                vm.setFlag("folders_in_list", it)
+            }
+        }
+        item {
             ToggleRow("Quick replies", "Reply to messages from the pop-up without opening the app", s.quickReplies) {
                 vm.setFlag("quick_replies", it)
             }

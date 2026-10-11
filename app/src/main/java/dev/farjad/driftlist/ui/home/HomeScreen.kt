@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.home
 
+import dev.farjad.driftlist.ui.components.PopupEditorSheet
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.rememberScrollState
@@ -127,7 +128,9 @@ private sealed interface Overlay {
     data object EditFavorites : Overlay
     data object AddFavorites : Overlay
     data object HeaderOptions : Overlay
-    data object WidgetPicker : Overlay
+    /** [stackId] null = the header; else a folder's or app pop-up's stack. */
+    data class WidgetPicker(val stackId: String?) : Overlay
+    data class PopupEditor(val app: AppEntity) : Overlay
     data object Search : Overlay
     data class ButtonTarget(val swipe: Boolean) : Overlay
     data object Recent : Overlay
@@ -222,11 +225,14 @@ fun HomeScreen(
 
     // --- widget add flow: allocate -> bind (maybe ask) -> configure (maybe) -> save ---------------
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
+    var pendingWidgetStack by remember { mutableStateOf<String?>(null) }
     val finishWidget: (Int) -> Unit = { id ->
+        val stack = pendingWidgetStack
+        val save = { if (stack == null) vm.saveHeaderWidget(id) else vm.saveStackWidget(id, stack) }
         if (vm.widgetHost.needsConfigure(id)) {
-            onConfigureWidget(id) { ok -> if (ok) vm.saveHeaderWidget(id) else vm.releaseWidgetId(id) }
+            onConfigureWidget(id) { ok -> if (ok) save() else vm.releaseWidgetId(id) }
         } else {
-            vm.saveHeaderWidget(id)
+            save()
         }
     }
     val bindLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -359,6 +365,9 @@ fun HomeScreen(
                         onRecent = { overlay = Overlay.Recent },
                         onSearch = { overlay = Overlay.Search },
                         onOpenSettings = onOpenSettings,
+                        folders = if (state.settings.foldersInList) state.favorites.filterIsInstance<HomeEntry.Folder>() else emptyList(),
+                        icons = vm.icons,
+                        onFolderClick = { overlay = Overlay.Folder(it) },
                     )
                 }
             }
@@ -375,7 +384,14 @@ fun HomeScreen(
             app = o.app,
             icons = vm.icons,
             notifications = notificationsFor(o.app),
-            shortcuts = remember(o.app.id) { vm.shortcutsFor(o.app) },
+            shortcuts = remember(o.app.id, state.settings.shortcutsHidden) {
+                if (o.app.id in state.settings.shortcutsHidden) emptyList() else vm.shortcutsFor(o.app)
+            },
+            popupApps = state.popupApps[o.app.id].orEmpty(),
+            widgets = state.stackWidgets[appStack(o.app.id)].orEmpty(),
+            widgetHost = vm.widgetHost,
+            onLaunchApp = { app -> close(); vm.launch(app, null) },
+            onEdit = { overlay = Overlay.PopupEditor(o.app) },
             shortcutIcon = { item, px -> vm.shortcutIcon(item, px) },
             onOpenApp = { close(); vm.launch(o.app, o.anchor) },
             onOpenNotification = { item: NotifItem -> close(); vm.openNotification(item) },
@@ -387,6 +403,23 @@ fun HomeScreen(
             onShortcutLongPress = { sc -> overlay = Overlay.AddShortcut(o.app, sc) },
             onClose = close,
         )
+        is Overlay.PopupEditor -> {
+            val inside = state.popupApps[o.app.id].orEmpty().map { it.id }
+            val widgets = state.stackWidgets[appStack(o.app.id)].orEmpty()
+            PopupEditorSheet(
+                app = o.app,
+                apps = state.allApps.filterNot { it.hidden },
+                selected = inside.toSet(),
+                icons = vm.icons,
+                widgetCount = widgets.size,
+                shortcutsShown = o.app.id !in state.settings.shortcutsHidden,
+                onToggleApp = { app -> vm.setPopupApps(o.app, if (app.id in inside) inside - app.id else inside + app.id) },
+                onToggleShortcuts = { vm.setShortcutsHidden(o.app, o.app.id !in state.settings.shortcutsHidden) },
+                onAddWidget = { overlay = Overlay.WidgetPicker(appStack(o.app.id)) },
+                onRemoveWidget = { widgets.firstOrNull()?.let { vm.removeHeaderWidget(it.appWidgetId) } },
+                onClose = close,
+            )
+        }
         is Overlay.AddShortcut -> ShortcutFolderDialog(
             shortcutLabel = o.shortcut.label,
             folders = state.favorites.filterIsInstance<HomeEntry.Folder>().map { it.folder.id to it.folder.title },
@@ -415,6 +448,7 @@ fun HomeScreen(
                 onClose = close,
                 isSuggestion = state.suggestions.any { it.id == app.id },
                 onStopSuggesting = { close(); vm.stopSuggesting(app) },
+                onEditPopup = { overlay = Overlay.PopupEditor(app) },
                 onScreenTime = remember(app.id) { vm.screenTimeIntent(app) }?.let { intent -> { close(); SystemActions.start(context, intent) } },
             )
         }
@@ -443,6 +477,12 @@ fun HomeScreen(
                 onRemoveShortcut = { sc -> vm.removeShortcutFromFolder(entry.folder.id, sc) },
                 onEdit = { overlay = Overlay.FolderEditor(entry.folder.id, entry.folder.title, entry.apps.map { it.id }) },
                 onClose = close,
+                widgets = state.stackWidgets[folderStack(entry.folder.id)].orEmpty(),
+                widgetHost = vm.widgetHost,
+                onAddWidget = { overlay = Overlay.WidgetPicker(folderStack(entry.folder.id)) },
+                onRemoveWidget = {
+                    state.stackWidgets[folderStack(entry.folder.id)]?.firstOrNull()?.let { vm.removeHeaderWidget(it.appWidgetId) }
+                },
             )
         }
         is Overlay.FolderOptions -> FolderOptionsSheet(
@@ -480,7 +520,7 @@ fun HomeScreen(
         Overlay.HeaderOptions -> HeaderOptionsSheet(
             widgetCount = state.headerWidgets.size,
             maxWidgets = WidgetDao.MAX_STACK,
-            onAddWidget = { overlay = Overlay.WidgetPicker },
+            onAddWidget = { overlay = Overlay.WidgetPicker(null) },
             onRemoveWidget = {
                 close()
                 state.headerWidgets.getOrNull(widgetPage.coerceAtMost(state.headerWidgets.lastIndex))
@@ -509,12 +549,13 @@ fun HomeScreen(
             onOpenCalendar = { close(); SystemActions.openCalendar(context) },
             onClose = close,
         )
-        Overlay.WidgetPicker -> {
+        is Overlay.WidgetPicker -> {
             val providers = remember { vm.widgetHost.providers() }
             WidgetPickerSheet(
                 providers = providers,
                 onPick = { info ->
                     close()
+                    pendingWidgetStack = o.stackId
                     val id = vm.allocateWidgetId()
                     val bind = vm.bindWidgetIntent(id, info)
                     if (bind == null) {
@@ -802,6 +843,9 @@ private fun AppListPane(
     onRecent: () -> Unit,
     onSearch: () -> Unit,
     onOpenSettings: () -> Unit,
+    folders: List<HomeEntry.Folder> = emptyList(),
+    icons: dev.farjad.driftlist.system.apps.IconCache? = null,
+    onFolderClick: (HomeEntry.Folder) -> Unit = {},
 ) {
     val colors = LocalHomeColors.current
     Box(Modifier.fillMaxSize()) {
@@ -821,6 +865,18 @@ private fun AppListPane(
                 )
             }
             items(section.apps, key = { it.id }) { app -> appRow(app, AppRowVariant.List) }
+        }
+        if (folders.isNotEmpty() && icons != null) {
+            item(key = "header:folders") {
+                Text(
+                    "Folders",
+                    style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
+                    modifier = Modifier.padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2).semantics { heading() },
+                )
+            }
+            items(folders, key = { "folder:" + it.folder.id }) { entry ->
+                FolderRow(title = entry.folder.title, apps = entry.apps, icons = icons, preview = null, onClick = { onFolderClick(entry) }, onLongClick = { onFolderClick(entry) })
+            }
         }
         if (recentCount > 0) {
             item(key = "footer:recent") {
