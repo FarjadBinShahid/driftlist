@@ -1,7 +1,7 @@
 # Architecture: launcher clone (a rebuild of Niagara Launcher's core + Pro features)
 
 Inputs: `replica/recon.md` (S01–S31, F01–F19) and `replica/features.csv` (82 rows).
-Working name: "the launcher" until `/replica-brand` names it. The package id is a placeholder: `dev.farjad.launcher`.
+Working name: **Driftlist** (`/replica-brand` can still rename it). The package id is a placeholder: `dev.farjad.driftlist`.
 
 ## The shape of this app
 

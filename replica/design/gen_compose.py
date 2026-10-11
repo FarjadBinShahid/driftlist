@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate Compose design tokens (Kotlin) from tokens.json. Standard library only.
 
-    python gen_compose.py tokens.json Tokens.kt [--package dev.farjad.launcher.ui.theme]
+    python gen_compose.py tokens.json Tokens.kt [--package dev.farjad.driftlist.ui.theme]
 
 tokens.json is the source of truth. Never edit the generated file by hand:
 change the JSON (replica-brand does this), re-run, then run contrast.py.
@@ -130,7 +130,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("tokens")
     ap.add_argument("out")
-    ap.add_argument("--package", default="dev.farjad.launcher.ui.theme")
+    ap.add_argument("--package", default="dev.farjad.driftlist.ui.theme")
     a = ap.parse_args()
     with open(a.tokens, encoding="utf-8") as f:
         t = json.load(f)

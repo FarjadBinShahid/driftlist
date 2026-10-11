@@ -37,6 +37,7 @@ create table app (
   bucket                   text not null,             -- alphabet bucket: 'A'..'Z', locale extras, '#'
   hidden                   integer not null default 0 check (hidden in (0,1)),   -- S24
   hidden_from_suggestions  integer not null default 0 check (hidden_from_suggestions in (0,1)),
+  is_system                integer not null default 0 check (is_system in (0,1)),  -- hides Uninstall (S08)
   category_folder_id       text references popup_folder(id) on delete set null, -- Pro: folder shown as category
   installed_at             integer not null,
   last_launched_at         integer,

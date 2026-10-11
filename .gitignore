@@ -23,3 +23,6 @@ Thumbs.db
 # Reference screenshots of the original app: kept local, never shipped
 replica/screens/*
 !replica/screens/README.md
+
+# Local build output
+build.log
