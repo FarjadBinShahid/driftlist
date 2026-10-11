@@ -61,9 +61,9 @@ Widget stacks (up to 4 / swipe to switch),widgets,should,yes,yes,M3b: pager with
 Widgets inside app pop-ups and folders,widgets,could,yes,no,pro
 Two-column layout on foldables / tablets,layout,could,yes,no,free; help 100
 Landscape support,layout,could,yes,partial,"test pass F03-E7: works, but the big clock pushes the last favorite below the fold (BUG-011)"
-Calendar upcoming events on home + agenda sheet,widgets,should,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
-Calendar event filter by calendar,widgets,could,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
-Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
+Calendar upcoming events on home + agenda sheet,widgets,should,yes,yes,"2026-10-12 (user asked for it after all): next event under the date in its calendar colour; tap the date for a 7-day agenda with New event / Open calendar; switch in the header sheet and Home screen settings; READ_CALENDAR asked when switched on, explainer only after Android stops asking"
+Calendar event filter by calendar,widgets,could,yes,yes,"Settings > Home screen > Calendars to show; device-specific, so left out of backups"
+Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,skip,user decision 2026-10-12: no weather; calendar only
 Usage Breaker reminders (5..240 min ladder),wellbeing,must,yes,yes,"M2: verified on emulator, reminders at 5 and 10 min; never blocks"
 Notification Summary batching,wellbeing,should,yes,yes,"M3b: picked apps are held and delivered in one notification, first at +5.5 h rounded to the hour (AlarmManager window); unit-tested schedule, delivery not observed end to end"
 Double-tap alphabet to sleep (Quick Lock),gestures,should,yes,partial,"M3b: double-tap detection, settings toggle and explainer verified; the lock itself needs the accessibility service switched on by the user, not tested"

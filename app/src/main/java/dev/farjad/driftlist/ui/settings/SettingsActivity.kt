@@ -148,6 +148,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun hasQuickLock() = QuickLockService.isEnabled(getApplication())
+    fun hasCalendarAccess() = c.calendar.hasPermission().also { c.calendar.refreshAccess() }
+    fun calendars() = c.calendar.calendars()
+    fun setCalendarHidden(id: Long, hidden: Boolean) = viewModelScope.launch { c.settings.setCalendarHidden(id, hidden) }
     fun hasUsageAccess() = c.usageBreaker.hasUsageAccess()
     fun canPostNotifications() = c.usageBreaker.canPostNotifications()
     fun hasNotificationAccess() = c.notifications.hasAccess()
@@ -171,6 +174,7 @@ private enum class Page(val title: String, val parent: Page? = null) {
     Backup("Backup", Root),
     About("About", Root),
     HiddenApps("Hidden apps", Home),
+    Calendars("Calendars", Home),
     IconPack("Icon pack", Look),
     TimeChecks("Time checks", Wellbeing),
     Summary("Notification Summary", Wellbeing),
@@ -218,6 +222,7 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
             Page.Backup -> BackupPage(vm, padding, snackbar)
             Page.About -> AboutPage(padding)
             Page.HiddenApps -> HiddenAppsPage(vm, state, padding)
+            Page.Calendars -> CalendarsPage(vm, state, padding)
             Page.IconPack -> IconPackPage(vm, state, padding)
             Page.TimeChecks -> TimeChecksPage(vm, state, padding)
             Page.Summary -> SummaryPage(vm, state, padding)
@@ -264,7 +269,7 @@ private fun RootPage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
             }
         }
         item { Spacer(Modifier.height(SpaceTokens.s3)) }
-        item { CategoryRow("Home screen", "Favorites, suggestions, music, the round button", Icons.Outlined.Home) { onNavigate(Page.Home) } }
+        item { CategoryRow("Home screen", "Favorites, calendar, suggestions, music, the round button", Icons.Outlined.Home) { onNavigate(Page.Home) } }
         item { CategoryRow("Gestures and search", "Swipes, Home button, Quick Lock, left-handed", Icons.Outlined.Gesture) { onNavigate(Page.Gestures) } }
         item { CategoryRow("Look", packLabel ?: "System icons", Icons.Outlined.Palette) { onNavigate(Page.Look) } }
         item { CategoryRow("Wellbeing", "Time checks, Notification Summary", Icons.Outlined.SelfImprovement) { onNavigate(Page.Wellbeing) } }
@@ -275,9 +280,46 @@ private fun RootPage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
 
 @Composable
 private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
+    val context = LocalContext.current
     val s = state.settings
     val hiddenCount = state.apps.count { it.hidden }
+    var calendarAccess by remember { mutableStateOf(vm.hasCalendarAccess()) }
+    var explainCalendar by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        calendarAccess = vm.hasCalendarAccess()
+        onPauseOrDispose { }
+    }
+    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        calendarAccess = vm.hasCalendarAccess()
+        if (granted) {
+            vm.setFlag("calendar_events", true)
+        } else {
+            val activity = context as? android.app.Activity
+            if (activity != null && !androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_CALENDAR)) {
+                explainCalendar = true
+            }
+        }
+    }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            ToggleRow(
+                "Calendar",
+                "Your next event under the date. Tap the date for the week ahead",
+                s.calendarEvents && calendarAccess,
+            ) { on ->
+                when {
+                    !on -> vm.setFlag("calendar_events", false)
+                    calendarAccess -> vm.setFlag("calendar_events", true)
+                    else -> calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+                }
+            }
+        }
+        if (s.calendarEvents && calendarAccess) {
+            item {
+                val hidden = s.hiddenCalendars.size
+                NavRow("Calendars to show", if (hidden == 0) "All" else "$hidden hidden") { onNavigate(Page.Calendars) }
+            }
+        }
         item {
             ToggleRow(
                 "Favorites at the bottom",
@@ -302,6 +344,40 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
             }
         }
         item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
+    }
+    if (explainCalendar) {
+        PermissionDialog(
+            explainer = Explainers.calendar,
+            onConfirm = {
+                explainCalendar = false
+                SystemActions.start(
+                    context,
+                    android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                )
+            },
+            onDismiss = { explainCalendar = false },
+        )
+    }
+}
+
+@Composable
+private fun CalendarsPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
+    val calendars = remember { vm.calendars() }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        if (calendars.isEmpty()) {
+            item {
+                Text(
+                    "No calendars on this phone yet. Add an account in your calendar app and it will show up here.",
+                    style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                    modifier = Modifier.padding(SpaceTokens.s7),
+                )
+            }
+        }
+        items(calendars, key = { it.id }) { cal ->
+            ToggleRow(cal.name.ifBlank { "Unnamed calendar" }, cal.account.takeIf { it.isNotBlank() && it != cal.name }, cal.id !in state.settings.hiddenCalendars) { show ->
+                vm.setCalendarHidden(cal.id, !show)
+            }
+        }
     }
 }
 

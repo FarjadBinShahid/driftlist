@@ -4,12 +4,12 @@
 
 | | |
 | --- | --- |
-| **Feature parity** | **74.5 / 100** (was 63.2 after M3a); calendar and weather rows are `skip` at the user's request |
+| **Feature parity** | **75.0 / 100** (was 63.2 after M3a); calendar added back at the user's request, weather stays `skip` |
 | Must-haves | **29 of 29** |
 | Open bugs | no S1, no S2; one S4 (BUG-011) |
 | Verdict | **not shippable yet**: all must-haves done, score under 80 |
 
-Built in M3b part 1: suggested apps with "Stop suggesting", the music card, widget stacks (up to 4), the round action button (app or folder), the search button and "Recently installed" footer in the list, left-hand mode, the haptics toggle, Home within 3 s returning to the list, Quick Lock (double-tap the strip), Notification Summary, and settings split into six sub-pages (gap L12 closed).
+Built in M3b part 1: suggested apps with "Stop suggesting", the music card, widget stacks (up to 4), the round action button (app or folder), the search button and "Recently installed" footer in the list, left-hand mode, the haptics toggle, Home within 3 s returning to the list, Quick Lock (double-tap the strip), Notification Summary, and settings split into six sub-pages (gap L12 closed). Then the calendar: next event under the date and a 7-day agenda sheet, with a per-calendar filter.
 
 Weakest areas now: layout 17 (foldable two-column, landscape), theming 18, search 56 (calculator, live web suggestions).
 

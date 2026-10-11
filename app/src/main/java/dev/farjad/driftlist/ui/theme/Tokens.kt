@@ -114,6 +114,10 @@ object SizeTokens {
     val sheetIcon = 24.dp
     val rowAction = 48.dp
     val alphabetSlot = 18.dp
+    val eventBarWidth = 4.dp
+    val eventBarHeight = 36.dp
+    val eventDot = 8.dp
+    val agendaMaxHeight = 520.dp
 }
 
 object RadiusTokens {

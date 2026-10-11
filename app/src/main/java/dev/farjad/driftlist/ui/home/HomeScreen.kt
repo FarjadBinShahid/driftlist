@@ -1,5 +1,10 @@
 package dev.farjad.driftlist.ui.home
 
+import android.Manifest
+import android.app.Activity
+import android.net.Uri
+import androidx.core.app.ActivityCompat
+import dev.farjad.driftlist.ui.components.AgendaSheet
 import android.app.SearchManager
 import android.app.role.RoleManager
 import android.content.Intent
@@ -116,6 +121,7 @@ private sealed interface Overlay {
     data object Search : Overlay
     data object ButtonTarget : Overlay
     data object Recent : Overlay
+    data object Agenda : Overlay
 }
 
 /** S05 favorites + S06 app list sharing one wave alphabet, plus every sheet opened from them. */
@@ -164,6 +170,30 @@ fun HomeScreen(
             SystemActions.start(context, SystemActions.homeSettingsIntent())
         }
     }
+
+    // --- calendar: Android's own prompt first; our explainer only once Android stops asking ------
+    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        vm.refreshSetup()
+        if (granted) {
+            vm.setFlag("calendar_events", true)
+        } else {
+            val activity = context as? Activity
+            if (activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.READ_CALENDAR)) {
+                overlay = Overlay.Permission(
+                    Explainers.calendar,
+                    Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null)),
+                )
+            }
+        }
+    }
+    val toggleCalendar: () -> Unit = {
+        when {
+            state.settings.calendarEvents -> vm.setFlag("calendar_events", false)
+            state.calendarAccess -> vm.setFlag("calendar_events", true)
+            else -> calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+        }
+    }
+    val agendaOn = state.settings.calendarEvents && state.calendarAccess
 
     // --- widget add flow: allocate -> bind (maybe ask) -> configure (maybe) -> save ---------------
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
@@ -280,6 +310,7 @@ fun HomeScreen(
                         onFolderClick = { overlay = Overlay.Folder(it) },
                         onFolderLongClick = { overlay = Overlay.FolderOptions(it) },
                         onHeaderLongClick = { overlay = Overlay.HeaderOptions },
+                        onDateClick = { if (agendaOn) overlay = Overlay.Agenda else SystemActions.openCalendar(context) },
                         onWidgetPage = { widgetPage = it },
                         onSuggestionRow = { app -> appRow(app, AppRowVariant.Favorite) },
                         onButtonClick = {
@@ -440,6 +471,16 @@ fun HomeScreen(
             onEditFavorites = { overlay = Overlay.EditFavorites },
             onOpenSettings = { close(); onOpenSettings() },
             onClose = close,
+            calendarOn = agendaOn,
+            onToggleCalendar = toggleCalendar,
+        )
+        Overlay.Agenda -> AgendaSheet(
+            events = state.agenda,
+            is24h = android.text.format.DateFormat.is24HourFormat(context),
+            onEvent = { e -> close(); vm.openEvent(e) },
+            onNewEvent = { close(); vm.newCalendarEvent() },
+            onOpenCalendar = { close(); SystemActions.openCalendar(context) },
+            onClose = close,
         )
         Overlay.WidgetPicker -> {
             val providers = remember { vm.widgetHost.providers() }
@@ -501,6 +542,7 @@ private fun FavoritesPane(
     onFolderClick: (HomeEntry.Folder) -> Unit,
     onFolderLongClick: (HomeEntry.Folder) -> Unit,
     onHeaderLongClick: () -> Unit,
+    onDateClick: () -> Unit,
     onWidgetPage: (Int) -> Unit,
     onSuggestionRow: @Composable (AppEntity) -> Unit,
     onButtonClick: () -> Unit,
@@ -547,8 +589,10 @@ private fun FavoritesPane(
             Spacer(Modifier.height(topSpace))
             ClockHeader(
                 onClockClick = { SystemActions.openClock(context) },
-                onDateClick = { SystemActions.openCalendar(context) },
+                onDateClick = onDateClick,
                 onLongClick = onHeaderLongClick,
+                upcoming = state.agenda,
+                dateOpensAgenda = state.settings.calendarEvents && state.calendarAccess,
             )
             if (state.headerWidgets.isNotEmpty()) {
                 Spacer(Modifier.height(SpaceTokens.s4))

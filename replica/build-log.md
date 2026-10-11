@@ -65,6 +65,19 @@ Harder than expected: Notification Summary. Holding a notification means cancell
 
 Tests: 9 unit, 23 instrumented, all passing. Onboarding copy fixed: favorites now sit under the clock by default, not at the bottom.
 
+## Calendar (2026-10-12)
+
+| ID | status | notes |
+| --- | --- | --- |
+| S05 next event | done | under the date with the calendar's colour; "In 25 min", "Until 10:30", "14:30", "Tomorrow 09:00", "Today" for all-day; long ongoing events (12 h+) don't hide what's next |
+| S14 agenda sheet | done | tap the date: 7 days grouped Today / Tomorrow / weekday, all-day first, multi-day events on every day they touch; New event and Open calendar |
+| Calendar filter | done | Settings > Home screen > Calendars to show |
+| Weather | skip | user decision |
+
+Read straight from CalendarContract.Instances on every change (ContentObserver) and every 15 minutes; nothing is stored. Found on the emulator: opening an event with an untyped content URI also matched Messages and the Google app, so the intent now carries `vnd.android.cursor.item/event`. Google Calendar on the emulator has no account, so it closes on a shell-made local calendar; the hand-off itself is verified in the log.
+
+Tests: AgendaTest (6 unit), AgendaSheetTest (2 instrumented, accessibility checks on). Totals: 15 unit, 25 instrumented, all passing.
+
 ## Bugs found and fixed during the milestone 2 run-through
 
 1. **Upgrading from 0.1.0 would have wiped favorites.** Onboarding showed for anyone without the new "onboarding done" flag, and finishing it replaced the favorites. Now it's skipped and marked done when favorites already exist.

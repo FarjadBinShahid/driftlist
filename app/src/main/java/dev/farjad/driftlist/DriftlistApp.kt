@@ -1,5 +1,6 @@
 package dev.farjad.driftlist
 
+import dev.farjad.driftlist.system.calendar.CalendarSource
 import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -37,6 +38,7 @@ class AppContainer(context: Context) {
     val widgetHost = WidgetHostManager(context)
     val usageBreaker = UsageBreaker(context, db, scope)
     val media = MediaHub(context)
+    val calendar = CalendarSource(context)
     val summary = NotificationSummary(context, db, scope)
     val backup = Backup(db, settings)
 }

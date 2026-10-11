@@ -1,5 +1,7 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.Switch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -493,9 +495,18 @@ fun HeaderOptionsSheet(
     onEditFavorites: () -> Unit,
     onOpenSettings: () -> Unit,
     onClose: () -> Unit,
+    calendarOn: Boolean = false,
+    onToggleCalendar: () -> Unit = {},
 ) {
     DriftSheet(onClose) {
         SheetTitle("Home screen")
+        CardRow(
+            "Calendar",
+            Icons.Outlined.CalendarMonth,
+            onToggleCalendar,
+            supporting = "Next event under the date; tap the date for the week",
+            trailing = { Switch(checked = calendarOn, onCheckedChange = null) },
+        )
         if (widgetCount < maxWidgets) {
             CardRow(
                 if (widgetCount == 0) "Add a widget" else "Add another widget",

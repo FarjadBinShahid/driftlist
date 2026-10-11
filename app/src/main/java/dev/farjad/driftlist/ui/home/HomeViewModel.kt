@@ -1,5 +1,12 @@
 package dev.farjad.driftlist.ui.home
 
+import dev.farjad.driftlist.domain.CalEvent
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import android.app.Application
 import android.content.Intent
 import android.graphics.Rect
@@ -83,6 +90,9 @@ data class HomeUiState(
     val suggestions: List<AppEntity> = emptyList(),
     val recentlyInstalled: List<AppEntity> = emptyList(),
     val media: MediaState? = null,
+    /** Calendar occurrences from yesterday to a week ahead; empty when the calendar is off. */
+    val agenda: List<CalEvent> = emptyList(),
+    val calendarAccess: Boolean = false,
 ) {
     val headerWidget: WidgetEntity? get() = headerWidgets.firstOrNull()
 }
@@ -168,7 +178,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             )
         },
         container.media.state,
-    ) { s, media -> s.copy(media = media) }
+        agendaFlow(),
+        container.calendar.access,
+    ) { s, media, agenda, calendarAccess -> s.copy(media = media, agenda = agenda, calendarAccess = calendarAccess) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loaded = false))
 
     /** When an app was last opened from the A-Z list; Home within a few seconds returns there. */
@@ -187,8 +199,22 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- setup ------------------------------------------------------------------------------
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun agendaFlow(): Flow<List<CalEvent>> = combine(
+        container.settings.flow.map { it.calendarEvents to it.hiddenCalendars }.distinctUntilChanged(),
+        container.calendar.access,
+    ) { (on, hidden), access -> Triple(on, hidden, access) }
+        .flatMapLatest { (on, hidden, access) ->
+            if (!on || !access) flowOf(emptyList()) else container.calendar.changes().map { container.calendar.upcoming(hidden) }
+        }
+        .flowOn(Dispatchers.IO)
+
+    fun openEvent(event: CalEvent) = container.calendar.open(event)
+    fun newCalendarEvent() = container.calendar.newEvent()
+
     fun refreshSetup() {
         val app = getApplication<Application>()
+        container.calendar.refreshAccess()
         container.notifications.ensureBound()
         setup.value = SetupStatus(
             isDefaultLauncher = SystemActions.isDefaultLauncher(app),

@@ -13,6 +13,9 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- The next event under the date and the agenda sheet. Read only; nothing is stored. -->
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
     <!-- Package visibility (Android 11+): every launchable app, icon packs, web search. -->
     <queries>
         <intent>

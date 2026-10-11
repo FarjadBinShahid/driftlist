@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.data
 
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -32,6 +33,10 @@ data class SettingsSnapshot(
     val haptics: Boolean = true,
     val quickLock: Boolean = false,
     val notificationSummary: Boolean = false,
+    /** Next event under the date, agenda on tapping it. Needs READ_CALENDAR. */
+    val calendarEvents: Boolean = false,
+    /** Calendars left out of the header and agenda. Device-specific ids, so not part of backups. */
+    val hiddenCalendars: Set<Long> = emptySet(),
 )
 
 class Settings(private val context: Context) {
@@ -50,6 +55,8 @@ class Settings(private val context: Context) {
         val haptics = booleanPreferencesKey("haptics")
         val quickLock = booleanPreferencesKey("quick_lock")
         val notificationSummary = booleanPreferencesKey("notification_summary")
+        val calendarEvents = booleanPreferencesKey("calendar_events")
+        val hiddenCalendars = stringSetPreferencesKey("hidden_calendars")
     }
 
     private val booleanKeys = mapOf(
@@ -65,6 +72,7 @@ class Settings(private val context: Context) {
         "haptics" to Keys.haptics,
         "quick_lock" to Keys.quickLock,
         "notification_summary" to Keys.notificationSummary,
+        "calendar_events" to Keys.calendarEvents,
     )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -83,6 +91,8 @@ class Settings(private val context: Context) {
             haptics = p[Keys.haptics] ?: true,
             quickLock = p[Keys.quickLock] ?: false,
             notificationSummary = p[Keys.notificationSummary] ?: false,
+            calendarEvents = p[Keys.calendarEvents] ?: false,
+            hiddenCalendars = p[Keys.hiddenCalendars].orEmpty().mapNotNullTo(HashSet()) { it.toLongOrNull() },
         )
     }
 
@@ -103,12 +113,19 @@ class Settings(private val context: Context) {
         context.dataStore.edit { it[key] = value }
     }
 
+    suspend fun setCalendarHidden(id: Long, hidden: Boolean) = context.dataStore.edit {
+        val current = it[Keys.hiddenCalendars].orEmpty()
+        it[Keys.hiddenCalendars] = if (hidden) current + id.toString() else current - id.toString()
+    }
+
     suspend fun setButtonTarget(target: String?) = context.dataStore.edit {
         if (target == null) it.remove(Keys.buttonTarget) else it[Keys.buttonTarget] = target
     }
 
     /** For backup/restore. */
-    suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap().mapKeys { it.key.name }
+    suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap()
+        .mapKeys { it.key.name }
+        .filterKeys { it != "hidden_calendars" }
 
     suspend fun import(values: Map<String, Any?>) = context.dataStore.edit { p ->
         p.clear()

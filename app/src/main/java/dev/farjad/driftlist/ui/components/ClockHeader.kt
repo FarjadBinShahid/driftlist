@@ -1,5 +1,11 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.style.TextOverflow
+import dev.farjad.driftlist.domain.Agenda
+import dev.farjad.driftlist.domain.CalEvent
+import dev.farjad.driftlist.ui.theme.SpaceTokens
 import android.text.format.DateFormat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -37,6 +43,8 @@ fun ClockHeader(
     onDateClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    upcoming: List<CalEvent> = emptyList(),
+    dateOpensAgenda: Boolean = false,
 ) {
     val context = LocalContext.current
     val colors = LocalHomeColors.current
@@ -72,7 +80,27 @@ fun ClockHeader(
                 .heightIn(min = SizeTokens.touchMin)
                 .wrapContentHeight(Alignment.CenterVertically)
                 .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
-                .semantics { contentDescription = "$date, open calendar" },
+                .semantics { contentDescription = if (dateOpensAgenda) "$date, show the week ahead" else "$date, open calendar" },
         )
+        val next = remember(upcoming, now) { Agenda.nextUp(upcoming, now.toInstant().toEpochMilli(), now.zone) }
+        if (next != null) {
+            val line = Agenda.headerLine(next, now.toInstant().toEpochMilli(), now.zone, DateFormat.is24HourFormat(context), locale)
+            Row(
+                Modifier
+                    .heightIn(min = SizeTokens.touchMin)
+                    .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
+                    .semantics(mergeDescendants = true) { contentDescription = "Next: $line. Show the week ahead" },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3),
+            ) {
+                EventDot(next)
+                Text(
+                    line,
+                    style = TypeTokens.bodySm.onWallpaper(colors),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }

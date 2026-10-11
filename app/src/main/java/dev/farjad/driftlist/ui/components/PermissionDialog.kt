@@ -58,6 +58,13 @@ object Explainers {
         steps = if (sideloaded) restrictedSteps else emptyList(),
     )
 
+    /** Shown only after Android stops showing its own calendar prompt ("Don't allow" twice). */
+    val calendar = PermissionExplainer(
+        title = "Show your calendar on home",
+        body = "Driftlist reads your calendar to show what's next under the date. Events are read on this phone and never stored or sent anywhere. Android won't ask again by itself, so open App info, then Permissions, then Calendar, and choose Allow.",
+        confirm = "Open App info",
+    )
+
     fun quickLock(sideloaded: Boolean) = PermissionExplainer(
         title = "Turn on Quick Lock",
         body = "Android only lets apps turn the screen off through an accessibility service. Driftlist's service reads nothing on screen; it only locks. In the list, open Driftlist Quick Lock and switch it on.",
