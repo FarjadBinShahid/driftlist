@@ -12,7 +12,7 @@ One line per screen. Screenshots are in `clone-screens/`, taken on the `Medium_P
 | S06 | App list A–Z | 2026-10-11 | partial | Recently installed footer, folders as categories | — |
 | S07 | App pop-up | 2026-10-11 | done | widgets inside pop-ups (could) | inline reply: the reply intent needs `RemoteInput.addResultsToIntent`, otherwise the app gets an empty reply |
 | S08 | App options | 2026-10-11 | done | — | — |
-| S09 | Icon picker | 2026-10-11 | partial | not tested with a real icon pack (needs a Play install) | — |
+| S09 | Icon picker | 2026-10-11 | done | — | parsing the pack's appfilter.xml happens on first open; fine with Arcticons (~10k icons), watch for slow packs |
 | S10 | Edit favorites | 2026-10-11 | done | — | drag reorder written by hand (Compose has no reorderable list) |
 | S11 | Pop-up folder | 2026-10-11 | partial | shortcuts inside folders | — |
 | S12 | Header options | 2026-10-11 | partial | clock styles, weather, calendar, position slider (M3) | — |
@@ -52,4 +52,5 @@ One line per screen. Screenshots are in `clone-screens/`, taken on the `Medium_P
 - Hide and unhide.
 - Settings pages.
 - Widget bind and configure, then the widget renders.
+- Icon pack (Arcticons Material You 15.3.2): applied to the list, a per-app pick, and the pick was remembered after switching packs.
 - Backup saved as JSON, app data wiped, onboarding run, backup restored with everything back.

@@ -49,10 +49,10 @@ Ready-made themes (one-tap apply),theming,should,yes,no,pro (3 free); clone ship
 Theme Studio editor with live preview,theming,should,yes,no,pro; S19; wallpaper + icons + clock + font + accent; autosave
 My Themes: save multiple and switch,theming,should,yes,no,pro
 Share theme as file / import theme file,theming,could,yes,no,pro import; own file format; size cap; no system font / external wallpaper
-Third-party icon pack support,icons,must,yes,partial,M2: built (appfilter.xml); not yet tested with a real pack
-Per-app icon override picker,icons,must,yes,partial,M2: built; untested without an installed pack
-Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,no,pro; local heuristic only (no crowd data)
-Icon Assistant: auto-restore per-pack choices,icons,should,yes,partial,M2: overrides stored per pack; untested
+Third-party icon pack support,icons,must,yes,yes,M2: verified with Arcticons Material You 15.3.2; uncovered apps keep their system icon
+Per-app icon override picker,icons,must,yes,yes,"M2: verified; suggestions first, search by icon name"
+Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,partial,M2: picker lists name-matched icons first; no learning
+Icon Assistant: auto-restore per-pack choices,icons,should,yes,yes,M2: verified switching to system icons and back
 Custom fonts (bundled + import .ttf/.otf),theming,should,yes,no,pro; help 79; ship OFL fonts
 Clock styles,theming,should,yes,no,pro; design own styles
 Replace clock with widget,widgets,could,yes,no,pro?; help 23
