@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.settings
 
+import dev.farjad.driftlist.data.Fonts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.SideEffect
 import androidx.core.view.WindowCompat
@@ -221,6 +222,7 @@ internal enum class Page(val title: String, val parent: Page? = null) {
     IconPack("Icon pack", Look),
     Studio("Theme Studio", Look),
     MyThemes("My themes", Look),
+    FontLicences("Font licences", About),
     TimeChecks("Time checks", Wellbeing),
     Summary("Notification Summary", Wellbeing),
 }
@@ -282,7 +284,8 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
             Page.MyThemes -> MyThemesPage(vm, state, padding, snackbar)
             Page.Wellbeing -> WellbeingPage(state, padding, onNavigate = { page = it })
             Page.Backup -> BackupPage(vm, padding, snackbar)
-            Page.About -> AboutPage(padding)
+            Page.About -> AboutPage(padding, onNavigate = { page = it })
+            Page.FontLicences -> FontLicencesPage(padding)
             Page.HiddenApps -> HiddenAppsPage(vm, state, padding)
             Page.Calendars -> CalendarsPage(vm, state, padding)
             Page.IconPack -> IconPackPage(vm, state, padding)
@@ -609,10 +612,11 @@ private fun BackupPage(vm: SettingsViewModel, padding: PaddingValues, snackbar: 
 }
 
 @Composable
-private fun AboutPage(padding: PaddingValues) {
+private fun AboutPage(padding: PaddingValues, onNavigate: (Page) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher.") {} }
         item { NavRow("Privacy", "No accounts, no ads, no network. Everything stays on this phone.") {} }
+        item { NavRow("Font licences", "${Fonts.bundled.size} fonts under the SIL Open Font License") { onNavigate(Page.FontLicences) } }
     }
 }
 

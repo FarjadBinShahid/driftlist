@@ -207,6 +207,11 @@ internal fun ThemeStudioPage(vm: SettingsViewModel, state: SettingsUiState, padd
         }
 
         item { SectionHeader("Font") }
+        item { FontGroup("Included with Driftlist") }
+        items(Fonts.bundled, key = { "font:" + it.id }) { font ->
+            FontRow(font.id, font.label, selected = look.font == font.id, removable = false, onRemove = {}) { vm.setLook(look.copy(font = font.id)) }
+        }
+        item { FontGroup("On your phone") }
         val fonts = Fonts.system + imported.map { it to Fonts.label(it) }
         items(fonts, key = { "font:" + it.first }) { (id, label) ->
             FontRow(id, label, selected = look.font == id, removable = id.startsWith(Fonts.FILE_PREFIX), onRemove = {
@@ -286,6 +291,15 @@ internal fun ThemeStudioPage(vm: SettingsViewModel, state: SettingsUiState, padd
             onDismiss = { naming = false },
         )
     }
+}
+
+@Composable
+private fun FontGroup(text: String) {
+    Text(
+        text,
+        style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant),
+        modifier = Modifier.padding(start = SpaceTokens.s7, top = SpaceTokens.s3, bottom = SpaceTokens.s2),
+    )
 }
 
 @Composable
@@ -461,3 +475,40 @@ private fun swatchColor(seed: Int?): Color =
     if (seed == null) MaterialTheme.colorScheme.primary else Color(seed).copy(alpha = 1f)
 
 private const val DEFAULT_SEED = 0xFF3B5BCC.toInt()
+
+// --- font licences (About) ----------------------------------------------------------------------
+
+@Composable
+internal fun FontLicencesPage(padding: PaddingValues) {
+    val context = LocalContext.current
+    var open by remember { mutableStateOf<Fonts.Bundled?>(null) }
+    val texts = remember {
+        Fonts.bundled.associate { f ->
+            f.id to runCatching { context.assets.open("licenses/fonts/${f.licence}.txt").bufferedReader().use { it.readText() } }.getOrDefault("")
+        }
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            Text(
+                "These fonts ship with Driftlist under the SIL Open Font License 1.1. Tap one to read its licence.",
+                style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3),
+            )
+        }
+        items(Fonts.bundled, key = { it.id }) { f ->
+            NavRow(f.label, texts[f.id].orEmpty().lineSequence().firstOrNull()?.trim()) { open = f }
+        }
+    }
+    open?.let { f ->
+        AlertDialog(
+            onDismissRequest = { open = null },
+            title = { Text(f.label) },
+            text = {
+                LazyColumn(Modifier.heightIn(max = SizeTokens.agendaMaxHeight)) {
+                    item { Text(texts[f.id].orEmpty(), style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurface)) }
+                }
+            },
+            confirmButton = { TextButton(onClick = { open = null }) { Text("Close") } },
+        )
+    }
+}

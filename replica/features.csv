@@ -53,7 +53,7 @@ Third-party icon pack support,icons,must,yes,yes,M2: verified with Arcticons Mat
 Per-app icon override picker,icons,must,yes,yes,"M2: verified; suggestions first, search by icon name"
 Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,partial,M2: picker lists name-matched icons first; no learning
 Icon Assistant: auto-restore per-pack choices,icons,should,yes,yes,M2: verified switching to system icons and back
-Custom fonts (bundled + import .ttf/.otf),theming,should,yes,yes,"M3b: nine font families already on every Android phone, plus .ttf/.otf import (checked, 8 MB cap). No downloaded font files bundled"
+Custom fonts (bundled + import .ttf/.otf),theming,should,yes,yes,"11 bundled OFL fonts from github.com/google/fonts (variable weights; licences in Settings > About > Font licences), 9 phone families, and .ttf/.otf import (checked, 8 MB cap)"
 Clock styles,theming,should,yes,yes,"M3b: five of our own: Thin, Bold, Stacked, Compact, Mono"
 Replace clock with widget,widgets,could,yes,no,pro?; help 23
 Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + configure verified with the Clock widget

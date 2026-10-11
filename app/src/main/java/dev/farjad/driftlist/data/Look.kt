@@ -78,13 +78,33 @@ object Accents {
 }
 
 /**
- * Fonts: the families every Android phone already has (no downloads, nothing to license), plus
- * .ttf/.otf files the user imports. Ids are "system:<family>" or "file:<name>".
+ * Fonts: families bundled with Driftlist (SIL Open Font License, from github.com/google/fonts,
+ * licences in assets/licenses/fonts), the families every Android phone already has, and .ttf/.otf
+ * files the user imports. Ids are "font:<name>", "system:<family>" or "file:<name>".
  */
 object Fonts {
     const val DEFAULT = "system:sans-serif"
     const val FILE_PREFIX = "file:"
+    const val BUNDLED_PREFIX = "font:"
 
+    /** Shipped with the app; [licence] is the file under assets/licenses/fonts. */
+    data class Bundled(val id: String, val label: String, val licence: String, val variable: Boolean)
+
+    val bundled: List<Bundled> = listOf(
+        Bundled("font:manrope", "Manrope", "manrope", variable = true),
+        Bundled("font:outfit", "Outfit", "outfit", variable = true),
+        Bundled("font:space_grotesk", "Space Grotesk", "spacegrotesk", variable = true),
+        Bundled("font:comfortaa", "Comfortaa", "comfortaa", variable = true),
+        Bundled("font:lora", "Lora", "lora", variable = true),
+        Bundled("font:playfair_display", "Playfair Display", "playfairdisplay", variable = true),
+        Bundled("font:fraunces", "Fraunces", "fraunces", variable = true),
+        Bundled("font:dm_serif_display", "DM Serif Display", "dmserifdisplay", variable = false),
+        Bundled("font:jetbrains_mono", "JetBrains Mono", "jetbrainsmono", variable = true),
+        Bundled("font:bebas_neue", "Bebas Neue", "bebasneue", variable = false),
+        Bundled("font:caveat", "Caveat", "caveat", variable = true),
+    )
+
+    /** Families on every Android phone. */
     val system: List<Pair<String, String>> = listOf(
         DEFAULT to "System",
         "system:sans-serif-light" to "Light",
@@ -98,7 +118,8 @@ object Fonts {
     )
 
     fun label(id: String): String =
-        system.firstOrNull { it.first == id }?.second
+        bundled.firstOrNull { it.id == id }?.label
+            ?: system.firstOrNull { it.first == id }?.second
             ?: id.removePrefix(FILE_PREFIX).substringBeforeLast('.').takeIf { id.startsWith(FILE_PREFIX) }
             ?: "System"
 }
@@ -109,10 +130,11 @@ data class ReadyTheme(val id: String, val name: String, val description: String,
 object ReadyThemes {
     val all: List<ReadyTheme> = listOf(
         ReadyTheme("driftlist", "Driftlist", "Thin clock, colours from your wallpaper", Look()),
-        ReadyTheme("ink", "Ink", "Serif type, graphite, always light", Look(ClockStyle.Thin, "system:serif", 1f, Accents.presets[7].second, ThemeMode.Light)),
-        ReadyTheme("night-shift", "Night shift", "Bold clock, warm amber, always dark", Look(ClockStyle.Bold, "system:sans-serif-condensed", 1f, Accents.presets[3].second, ThemeMode.Dark)),
-        ReadyTheme("terminal", "Terminal", "Fixed-width everything, teal", Look(ClockStyle.Mono, "system:monospace", 1f, Accents.presets[1].second, ThemeMode.Dark)),
-        ReadyTheme("postcard", "Postcard", "Stacked clock, casual type, coral", Look(ClockStyle.Stacked, "system:casual", 1.05f, Accents.presets[4].second, ThemeMode.Auto)),
-        ReadyTheme("quiet", "Quiet", "Small clock, light type, sage", Look(ClockStyle.Compact, "system:sans-serif-light", 1f, Accents.presets[2].second, ThemeMode.Auto)),
+        ReadyTheme("ink", "Ink", "Lora serif, graphite, always light", Look(ClockStyle.Thin, "font:lora", 1f, Accents.presets[7].second, ThemeMode.Light)),
+        ReadyTheme("night-shift", "Night shift", "Bebas Neue, warm amber, always dark", Look(ClockStyle.Bold, "font:bebas_neue", 1.05f, Accents.presets[3].second, ThemeMode.Dark)),
+        ReadyTheme("terminal", "Terminal", "JetBrains Mono everywhere, teal", Look(ClockStyle.Mono, "font:jetbrains_mono", 1f, Accents.presets[1].second, ThemeMode.Dark)),
+        ReadyTheme("postcard", "Postcard", "Stacked clock, handwritten Caveat, coral", Look(ClockStyle.Stacked, "font:caveat", 1.1f, Accents.presets[4].second, ThemeMode.Auto)),
+        ReadyTheme("quiet", "Quiet", "Small clock, Manrope, sage", Look(ClockStyle.Compact, "font:manrope", 1f, Accents.presets[2].second, ThemeMode.Auto)),
+        ReadyTheme("gallery", "Gallery", "Playfair Display, rose, always light", Look(ClockStyle.Thin, "font:playfair_display", 1f, Accents.presets[5].second, ThemeMode.Light)),
     )
 }

@@ -65,6 +65,10 @@ Harder than expected: Notification Summary. Holding a notification means cancell
 
 Tests: 9 unit, 23 instrumented, all passing. Onboarding copy fixed: favorites now sit under the clock by default, not at the bottom.
 
+## Bundled fonts (2026-10-12)
+
+User approved downloading 11 fonts from github.com/google/fonts (all SIL OFL 1.1, unmodified): Manrope, Outfit, Space Grotesk, Comfortaa, Lora, Playfair Display, Fraunces, DM Serif Display, JetBrains Mono, Bebas Neue, Caveat. About 2.2 MB in `res/font`; each file's size checked against the repo and its TrueType header checked before use. Licences ship in `assets/licenses/fonts` and show in Settings > About > Font licences. Variable fonts get real weights 300 to 800 from their weight axis, so Bold and Stacked clocks are truly bold (verified on the emulator with Manrope). Ready-made themes now use them (Ink: Lora, Night shift: Bebas Neue, Terminal: JetBrains Mono, Postcard: Caveat, Quiet: Manrope, new Gallery: Playfair Display). Tests: 23 unit, 29 instrumented, all passing.
+
 ## Milestone 3b part 2 (2026-10-12): theming
 
 | ID | status | notes |

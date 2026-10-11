@@ -1,5 +1,9 @@
 package dev.farjad.driftlist.ui.theme
 
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.FontVariation
+import androidx.compose.ui.text.font.FontWeight
+import dev.farjad.driftlist.R
 import android.graphics.Typeface
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.CompositionLocalProvider
@@ -123,6 +127,7 @@ val LocalClockStyle = staticCompositionLocalOf { ClockStyle.Thin }
 fun fontFamilyFor(context: Context, id: String): FontFamily = runCatching {
     when {
         id == Fonts.DEFAULT -> FontFamily.Default
+        id.startsWith(Fonts.BUNDLED_PREFIX) -> bundledFamily(id) ?: FontFamily.Default
         id == "system:serif" -> FontFamily.Serif
         id == "system:monospace" -> FontFamily.Monospace
         id == "system:cursive" -> FontFamily.Cursive
@@ -190,3 +195,32 @@ val HomeColorsForLightWallpaper = HomeColors(
 )
 
 val LocalHomeColors = staticCompositionLocalOf { HomeColorsForDarkWallpaper }
+
+private val bundledRes = mapOf(
+    "font:manrope" to R.font.manrope,
+    "font:outfit" to R.font.outfit,
+    "font:space_grotesk" to R.font.space_grotesk,
+    "font:comfortaa" to R.font.comfortaa,
+    "font:lora" to R.font.lora,
+    "font:playfair_display" to R.font.playfair_display,
+    "font:fraunces" to R.font.fraunces,
+    "font:dm_serif_display" to R.font.dm_serif_display,
+    "font:jetbrains_mono" to R.font.jetbrains_mono,
+    "font:bebas_neue" to R.font.bebas_neue,
+    "font:caveat" to R.font.caveat,
+)
+
+/** Weights the type tokens use. Variable files get each one from their weight axis. */
+private val weights = listOf(300, 400, 500, 600, 700, 800)
+
+@OptIn(ExperimentalTextApi::class)
+private fun bundledFamily(id: String): FontFamily? {
+    val res = bundledRes[id] ?: return null
+    val info = Fonts.bundled.firstOrNull { it.id == id } ?: return null
+    if (!info.variable) return FontFamily(Font(res))
+    return FontFamily(
+        weights.map { w ->
+            Font(res, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+        },
+    )
+}

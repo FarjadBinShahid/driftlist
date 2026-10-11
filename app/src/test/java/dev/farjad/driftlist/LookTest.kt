@@ -6,6 +6,7 @@ import dev.farjad.driftlist.data.Look
 import dev.farjad.driftlist.data.ReadyThemes
 import dev.farjad.driftlist.data.ThemeMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LookTest {
@@ -29,6 +30,14 @@ class LookTest {
         assertEquals("Serif", Fonts.label("system:serif"))
         assertEquals("Inter Display", Fonts.label("file:Inter Display.otf"))
         assertEquals("System", Fonts.label("system:unknown"))
+    }
+
+    @Test
+    fun everyReadyThemeUsesAFontWeShip() {
+        val known = Fonts.bundled.map { it.id } + Fonts.system.map { it.first }
+        ReadyThemes.all.forEach { assertTrue("${it.id} uses unknown font ${it.look.font}", it.look.font in known) }
+        assertEquals("Lora", Fonts.label("font:lora"))
+        assertEquals(Fonts.bundled.size, Fonts.bundled.map { it.id }.toSet().size)
     }
 
     @Test
