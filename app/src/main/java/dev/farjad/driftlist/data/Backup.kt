@@ -6,6 +6,7 @@ import dev.farjad.driftlist.data.db.FolderItemEntity
 import dev.farjad.driftlist.data.db.HomeItemEntity
 import dev.farjad.driftlist.data.db.IconOverrideEntity
 import dev.farjad.driftlist.data.db.PopupFolderEntity
+import dev.farjad.driftlist.data.db.ShortcutEntity
 import dev.farjad.driftlist.data.db.UsageRuleEntity
 import org.json.JSONArray
 import org.json.JSONObject
@@ -41,10 +42,17 @@ class Backup(private val db: DriftlistDatabase, private val settings: Settings) 
             .put("folders", JSONArray().apply {
                 db.folderDao().folders().forEach { put(JSONObject().put("id", it.id).put("title", it.title)) }
             })
+            .put("shortcuts", JSONArray().apply {
+                db.shortcutDao().all().forEach {
+                    put(JSONObject().put("id", it.id).put("package_name", it.packageName).put("shortcut_id", it.shortcutId)
+                        .put("user_serial", it.userSerial).put("label", it.label))
+                }
+            })
             .put("folder_items", JSONArray().apply {
                 db.folderDao().items().forEach {
                     put(JSONObject().put("id", it.id).put("folder_id", it.folderId).put("position", it.position)
-                        .put("kind", it.kind).put("app_id", it.appId ?: JSONObject.NULL))
+                        .put("kind", it.kind).put("app_id", it.appId ?: JSONObject.NULL)
+                        .put("shortcut_id", it.shortcutId ?: JSONObject.NULL))
                 }
             })
             .put("icon_overrides", JSONArray().apply {
@@ -80,14 +88,35 @@ class Backup(private val db: DriftlistDatabase, private val settings: Settings) 
 
             db.homeDao().clear()
             db.folderDao().folders().forEach { db.folderDao().delete(it.id) }
+            db.shortcutDao().deleteUnused()
 
             root.optJSONArray("folders").objects().forEach { o ->
                 db.folderDao().insertFolder(PopupFolderEntity(o.getString("id"), o.getString("title"), createdAt = now, updatedAt = now))
             }
+            // Shortcuts of apps that are installed here; ids are kept so folder items still point at them.
+            val installedPackages = installed.values.map { it.packageName to it.userSerial }.toSet()
+            val shortcutIds = HashSet<String>()
+            root.optJSONArray("shortcuts").objects().forEach { o ->
+                val key = o.getString("package_name") to o.getLong("user_serial")
+                if (key !in installedPackages) return@forEach
+                val id = o.getString("id")
+                db.shortcutDao().insert(
+                    ShortcutEntity(id, key.first, o.getString("shortcut_id"), key.second, o.optString("label"), now, now),
+                )
+                shortcutIds += id
+            }
             val folderItems = root.optJSONArray("folder_items").objects().mapNotNull { o ->
                 val appId = o.optStringOrNull("app_id")
-                if (appId == null || appId !in installed) return@mapNotNull null
-                FolderItemEntity(o.getString("id"), o.getString("folder_id"), o.getInt("position"), o.getString("kind"), appId = appId, createdAt = now)
+                val shortcutId = o.optStringOrNull("shortcut_id")
+                when {
+                    appId != null && appId in installed -> FolderItemEntity(
+                        o.getString("id"), o.getString("folder_id"), o.getInt("position"), "app", appId = appId, createdAt = now,
+                    )
+                    shortcutId != null && shortcutId in shortcutIds -> FolderItemEntity(
+                        o.getString("id"), o.getString("folder_id"), o.getInt("position"), "shortcut", shortcutId = shortcutId, createdAt = now,
+                    )
+                    else -> null
+                }
             }
             db.folderDao().insertItems(folderItems)
 

@@ -62,6 +62,7 @@ fun SearchOverlay(
     onLaunch: (AppEntity) -> Unit,
     onLongPress: (AppEntity) -> Unit,
     onWebSearch: (String) -> Unit,
+    onPlaySearch: (String) -> Unit,
     onClose: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -98,7 +99,8 @@ fun SearchOverlay(
                     }
                 } else {
                     items(results, key = { it.id }) { app ->
-                        SheetAppRow(app, icons, onClick = { onLaunch(app) }) {
+                        val top = app.id == results.firstOrNull()?.id
+                        SheetAppRow(app, icons, onClick = { onLaunch(app) }, supporting = if (top) "Enter opens this" else null) {
                             if (app.hidden) Text("Hidden", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
                         }
                     }
@@ -111,6 +113,7 @@ fun SearchOverlay(
                                 )
                             }
                             TextButton(onClick = { onWebSearch(query) }) { Text("Search the web for “$query”") }
+                            TextButton(onClick = { onPlaySearch(query) }) { Text("Find “$query” on Google Play") }
                         }
                     }
                 }

@@ -52,7 +52,17 @@ import dev.farjad.driftlist.system.SystemActions
 import dev.farjad.driftlist.system.notifications.NotifItem
 import dev.farjad.driftlist.ui.components.AddFavoritesSheet
 import dev.farjad.driftlist.ui.components.AppOptionsSheet
-import dev.farjad.driftlist.ui.components.AppPopupSheet
+import dev.farjad.driftlist.ui.components.AppPopupCard
+import dev.farjad.driftlist.ui.components.Explainers
+import dev.farjad.driftlist.ui.components.PermissionDialog
+import dev.farjad.driftlist.ui.components.PermissionExplainer
+import dev.farjad.driftlist.ui.components.ShortcutFolderDialog
+import dev.farjad.driftlist.domain.RelativeTime
+import androidx.compose.foundation.gestures.scrollBy
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.platform.LocalConfiguration
+import kotlinx.coroutines.launch
 import dev.farjad.driftlist.ui.components.AppRow
 import dev.farjad.driftlist.ui.components.AppRowVariant
 import dev.farjad.driftlist.ui.components.ClockHeader
@@ -83,7 +93,9 @@ private enum class Pane { Favorites, AllApps }
 
 /** Everything that can sit on top of home. One at a time. */
 private sealed interface Overlay {
-    data class Popup(val app: AppEntity) : Overlay
+    data class Popup(val app: AppEntity, val anchor: android.graphics.Rect?) : Overlay
+    data class AddShortcut(val app: AppEntity, val shortcut: dev.farjad.driftlist.system.apps.ShortcutInfoItem) : Overlay
+    data class Permission(val explainer: PermissionExplainer, val intent: Intent) : Overlay
     data class Options(val app: AppEntity) : Overlay
     data class IconPicker(val app: AppEntity) : Overlay
     data class Folder(val entry: HomeEntry.Folder) : Overlay
@@ -167,19 +179,25 @@ fun HomeScreen(
     }
 
     val notificationsFor = { app: AppEntity -> state.notifications[app.key].orEmpty() }
+    val nowMs = System.currentTimeMillis()
     val appRow: @Composable (AppEntity, AppRowVariant) -> Unit = { app, variant ->
         val notes = notificationsFor(app)
+        val latest = notes.firstOrNull()
         AppRow(
             app = app,
             icons = vm.icons,
             variant = variant,
-            preview = notes.firstOrNull()?.preview,
+            preview = latest?.preview,
             notificationCount = notes.size,
             onClick = { bounds -> vm.launch(app, bounds) },
             onLongClick = { overlay = Overlay.Options(app) },
-            onSwipeRight = { overlay = Overlay.Popup(app) },
+            onSwipeRight = { anchor -> overlay = Overlay.Popup(app, anchor) },
+            previewAge = latest?.let { RelativeTime.short(nowMs - it.postedAt) },
         )
     }
+    val sideloaded = remember { SystemActions.isSideloaded(context) }
+    val listScope = rememberCoroutineScope()
+    val thirdOfScreenPx = with(LocalDensity.current) { (LocalConfiguration.current.screenHeightDp.dp / 3).toPx() }
 
     Box(Modifier.fillMaxSize()) {
         // Scrim over the wallpaper. Home: darker behind the clock and the favorites, clear in between.
@@ -214,7 +232,10 @@ fun HomeScreen(
                         onSearch = { if (state.settings.swipeUpSearch) overlay = Overlay.Search },
                         onAskDefault = askToBeDefault,
                         onAskNotifications = {
-                            SystemActions.start(context, SystemActions.notificationAccessIntent(context))
+                            overlay = Overlay.Permission(
+                                Explainers.notificationAccess(sideloaded),
+                                SystemActions.notificationAccessIntent(context),
+                            )
                         },
                     )
                     Pane.AllApps -> AppListPane(state.list, listState, appRow, onOpenSettings)
@@ -225,8 +246,18 @@ fun HomeScreen(
                 enabledLetters = state.list.enabledLetters,
                 onLetter = { letter ->
                     pane = Pane.AllApps
-                    state.list.headerIndex[letter]?.let { listState.requestScrollToItem(it) }
+                    state.list.headerIndex[letter]?.let { index ->
+                        listState.requestScrollToItem(index)
+                        // The reference lands the section header about a third of the way down.
+                        listScope.launch {
+                            withFrameNanos { }
+                            listState.scrollToItem(index)
+                            listState.scrollBy(-thirdOfScreenPx)
+                        }
+                    }
                 },
+                onFavorites = { pane = Pane.Favorites },
+                onSettings = onOpenSettings,
             )
         }
     }
@@ -235,19 +266,32 @@ fun HomeScreen(
     val close = { overlay = null }
     when (val o = overlay) {
         null -> Unit
-        is Overlay.Popup -> AppPopupSheet(
+        is Overlay.Popup -> AppPopupCard(
+            anchor = o.anchor,
             app = o.app,
             icons = vm.icons,
             notifications = notificationsFor(o.app),
             shortcuts = remember(o.app.id) { vm.shortcutsFor(o.app) },
             shortcutIcon = { item, px -> vm.shortcutIcon(item, px) },
-            onOpenApp = { close(); vm.launch(o.app, null) },
+            onOpenApp = { close(); vm.launch(o.app, o.anchor) },
             onOpenNotification = { item: NotifItem -> close(); vm.openNotification(item) },
             onDismissNotification = vm::dismissNotification,
             onReply = vm::reply,
             onRunAction = { action -> vm.runAction(action) },
-            onShortcut = { sc -> close(); vm.launchShortcut(sc, null) },
+            onShortcut = { sc -> close(); vm.launchShortcut(sc, o.anchor) },
+            onShortcutLongPress = { sc -> overlay = Overlay.AddShortcut(o.app, sc) },
             onClose = close,
+        )
+        is Overlay.AddShortcut -> ShortcutFolderDialog(
+            shortcutLabel = o.shortcut.label,
+            folders = state.favorites.filterIsInstance<HomeEntry.Folder>().map { it.folder.id to it.folder.title },
+            onPick = { folderId, title -> close(); vm.addShortcutToFolder(o.app, o.shortcut, folderId, title) },
+            onDismiss = close,
+        )
+        is Overlay.Permission -> PermissionDialog(
+            explainer = o.explainer,
+            onConfirm = { close(); SystemActions.start(context, o.intent) },
+            onDismiss = close,
         )
         is Overlay.Options -> {
             val app = state.allApps.firstOrNull { it.id == o.app.id } ?: o.app
@@ -256,6 +300,8 @@ fun HomeScreen(
                 icons = vm.icons,
                 isFavorite = app.id in state.favoriteAppIds,
                 onToggleFavorite = { close(); vm.toggleFavorite(app) },
+                onEditFavorites = { overlay = Overlay.EditFavorites },
+                onOpenSettings = { close(); onOpenSettings() },
                 onRename = { name -> close(); vm.rename(app, name) },
                 onChangeIcon = { overlay = Overlay.IconPicker(app) },
                 onToggleHidden = { close(); vm.setHidden(app, !app.hidden) },
@@ -281,8 +327,12 @@ fun HomeScreen(
             FolderSheet(
                 title = entry.folder.title,
                 apps = entry.apps,
+                shortcuts = entry.shortcuts,
                 icons = vm.icons,
+                shortcutIcon = { sc, px -> vm.storedShortcutIcon(sc, px) },
                 onLaunch = { app -> close(); vm.launch(app, null) },
+                onLaunchShortcut = { sc -> close(); vm.launchStoredShortcut(sc, null) },
+                onRemoveShortcut = { sc -> vm.removeShortcutFromFolder(entry.folder.id, sc) },
                 onEdit = { overlay = Overlay.FolderEditor(entry.folder.id, entry.folder.title, entry.apps.map { it.id }) },
                 onClose = close,
             )
@@ -357,6 +407,10 @@ fun HomeScreen(
                 close()
                 SystemActions.start(context, Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, q))
             },
+            onPlaySearch = { q ->
+                close()
+                SystemActions.start(context, Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://search?q=" + android.net.Uri.encode(q) + "&c=apps")))
+            },
             onClose = close,
         )
     }
@@ -409,7 +463,7 @@ private fun FavoritesPane(
     ) {
         val topSpace = maxHeight * SizeTokens.headerTopSpaceRatio
         Column(Modifier.fillMaxSize().padding(start = SizeTokens.edgeGutter)) {
-            Spacer(Modifier.height(topSpace - 48.dp))
+            Spacer(Modifier.height(topSpace))
             ClockHeader(
                 onClockClick = { SystemActions.openClock(context) },
                 onDateClick = { SystemActions.openCalendar(context) },
@@ -439,9 +493,10 @@ private fun FavoritesPane(
                     modifier = Modifier.padding(end = SpaceTokens.s3),
                 )
             }
+            if (!state.settings.favoritesAtBottom) Spacer(Modifier.height(SpaceTokens.s4))
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = Arrangement.Bottom,
+                verticalArrangement = if (state.settings.favoritesAtBottom) Arrangement.Bottom else Arrangement.Top,
                 contentPadding = PaddingValues(bottom = SpaceTokens.s7),
             ) {
                 if (state.loaded && state.favorites.isEmpty()) {

@@ -16,6 +16,10 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -106,8 +110,10 @@ fun LauncherRow(
     a11yLabel: String,
     onClick: (Rect?) -> Unit,
     onLongClick: () -> Unit,
-    onSwipeRight: (() -> Unit)?,
+    onSwipeRight: ((Rect?) -> Unit)?,
     swipeActionLabel: String = "Notifications and shortcuts",
+    labelSuffix: String? = null,
+    showDetailsButton: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalHomeColors.current
@@ -134,7 +140,7 @@ fun LauncherRow(
         m = m.pointerInput(label) {
             detectHorizontalDragGestures(
                 onDragEnd = {
-                    if (dragX > threshold) onSwipeRight()
+                    if (dragX > threshold) onSwipeRight(bounds)
                     dragX = 0f
                 },
                 onDragCancel = { dragX = 0f },
@@ -156,7 +162,7 @@ fun LauncherRow(
             .semantics(mergeDescendants = true) {
                 contentDescription = a11yLabel
                 customActions = listOfNotNull(
-                    onSwipeRight?.let { swipe -> CustomAccessibilityAction(swipeActionLabel) { swipe(); true } },
+                    onSwipeRight?.let { swipe -> CustomAccessibilityAction(swipeActionLabel) { swipe(bounds); true } },
                     CustomAccessibilityAction("Options") { onLongClick(); true },
                 )
             }
@@ -165,14 +171,28 @@ fun LauncherRow(
         horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
     ) {
         icon(iconSize)
-        Column {
-            Text(label, style = labelStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Column(Modifier.weight(1f)) {
+            Text(
+                if (labelSuffix != null) "$label \u00B7 $labelSuffix" else label,
+                style = labelStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (!preview.isNullOrBlank()) {
                 Text(
                     preview,
                     style = TypeTokens.preview.onWallpaper(colors, colors.preview),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        if (showDetailsButton && onSwipeRight != null) {
+            IconButton(onClick = { onSwipeRight(bounds) }, modifier = Modifier.size(SizeTokens.rowAction)) {
+                Icon(
+                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = "Open notifications",
+                    tint = colors.text,
                 )
             }
         }
@@ -189,8 +209,9 @@ fun AppRow(
     notificationCount: Int,
     onClick: (Rect?) -> Unit,
     onLongClick: () -> Unit,
-    onSwipeRight: () -> Unit,
+    onSwipeRight: (Rect?) -> Unit,
     modifier: Modifier = Modifier,
+    previewAge: String? = null,
 ) {
     LauncherRow(
         label = app.label,
@@ -201,6 +222,8 @@ fun AppRow(
         onClick = onClick,
         onLongClick = onLongClick,
         onSwipeRight = onSwipeRight,
+        labelSuffix = if (notificationCount > 0) previewAge else null,
+        showDetailsButton = notificationCount > 0,
         modifier = modifier,
     )
 }

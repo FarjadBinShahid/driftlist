@@ -27,6 +27,7 @@ abstract class DriftlistDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
     abstract fun homeDao(): HomeDao
     abstract fun folderDao(): FolderDao
+    abstract fun shortcutDao(): ShortcutDao
     abstract fun widgetDao(): WidgetDao
     abstract fun iconOverrideDao(): IconOverrideDao
     abstract fun usageDao(): UsageDao

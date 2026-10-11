@@ -6,12 +6,13 @@ import org.junit.Test
 
 class WaveTest {
     @Test
-    fun intensityIsFullAtFingerAndZeroAtInfluenceEdge() {
-        assertEquals(1f, Wave.intensity(0f, 4), 1e-6f)
-        assertEquals(0.5f, Wave.intensity(2f, 4), 1e-6f)
-        assertEquals(0f, Wave.intensity(4f, 4), 1e-6f)
-        assertEquals(0f, Wave.intensity(9f, 4), 1e-6f)
-        assertEquals(Wave.intensity(-1.5f, 4), Wave.intensity(1.5f, 4), 1e-6f)
+    fun intensityIsAVCentredOnTheFinger() {
+        assertEquals(1f, Wave.intensity(0f, 10f), 1e-6f)
+        assertEquals(0.5f, Wave.intensity(5f, 10f), 1e-6f)
+        assertEquals(0.5f, Wave.intensity(-5f, 10f), 1e-6f)
+        assertEquals(0f, Wave.intensity(10f, 10f), 1e-6f)
+        assertEquals(0f, Wave.intensity(25f, 10f), 1e-6f)
+        assertEquals(0f, Wave.intensity(1f, 0f), 1e-6f)
     }
 
     @Test

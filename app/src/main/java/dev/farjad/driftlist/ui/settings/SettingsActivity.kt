@@ -66,6 +66,8 @@ import dev.farjad.driftlist.data.db.UsageRuleEntity
 import dev.farjad.driftlist.system.SystemActions
 import dev.farjad.driftlist.system.apps.IconPack
 import dev.farjad.driftlist.ui.components.AppMultiPicker
+import dev.farjad.driftlist.ui.components.Explainers
+import dev.farjad.driftlist.ui.components.PermissionDialog
 import dev.farjad.driftlist.ui.components.SheetAppRow
 import dev.farjad.driftlist.ui.theme.DriftlistTheme
 import dev.farjad.driftlist.ui.theme.SizeTokens
@@ -105,6 +107,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSwipeUpSearch(v: Boolean) = viewModelScope.launch { c.settings.setSwipeUpSearch(v) }
     fun setSearchIncludesHidden(v: Boolean) = viewModelScope.launch { c.settings.setSearchIncludesHidden(v) }
     fun setUsageBreaker(v: Boolean) = viewModelScope.launch { c.settings.setUsageBreaker(v) }
+    fun setFavoritesAtBottom(v: Boolean) = viewModelScope.launch { c.settings.setFavoritesAtBottom(v) }
     fun unhide(app: AppEntity) = viewModelScope.launch { c.db.appDao().setHidden(app.id, false, System.currentTimeMillis()) }
 
     fun toggleUsageRule(app: AppEntity) = viewModelScope.launch {
@@ -241,6 +244,14 @@ private fun RootPage(
 
         item { SectionHeader("Home and search") }
         item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
+        item {
+            ToggleRow(
+                "Favorites at the bottom",
+                "Off: favorites follow the clock. On: they sit at the bottom, closest to your thumb",
+                state.settings.favoritesAtBottom,
+                vm::setFavoritesAtBottom,
+            )
+        }
         item {
             ToggleRow(
                 "Swipe up or press Home to search",
@@ -383,10 +394,16 @@ private fun TimeChecksPage(vm: SettingsViewModel, state: SettingsUiState, paddin
                 notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
         }
+        var explain by remember { mutableStateOf(false) }
         if (state.settings.usageBreaker && !hasUsage) {
-            NavRow("Usage access needed", "Lets Driftlist see which app is open. Tap, then switch Driftlist on.", warning = true) {
-                SystemActions.start(context, android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS))
-            }
+            NavRow("Usage access needed", "Lets Driftlist see which app is open. Tap to set it up.", warning = true) { explain = true }
+        }
+        if (explain) {
+            PermissionDialog(
+                explainer = Explainers.usageAccess(SystemActions.isSideloaded(context)),
+                onConfirm = { explain = false; SystemActions.start(context, SystemActions.usageAccessIntent()) },
+                onDismiss = { explain = false },
+            )
         }
         if (state.settings.usageBreaker && !canNotify) {
             NavRow("Notifications are off", "Time checks are delivered as notifications", warning = true) {

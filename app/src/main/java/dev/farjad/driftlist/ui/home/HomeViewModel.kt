@@ -11,6 +11,7 @@ import dev.farjad.driftlist.data.SettingsSnapshot
 import dev.farjad.driftlist.data.db.AppEntity
 import dev.farjad.driftlist.data.db.HomeItemEntity
 import dev.farjad.driftlist.data.db.PopupFolderEntity
+import dev.farjad.driftlist.data.db.ShortcutEntity
 import dev.farjad.driftlist.data.db.WidgetEntity
 import dev.farjad.driftlist.domain.AlphabetIndexer
 import dev.farjad.driftlist.domain.AppSearch
@@ -52,7 +53,12 @@ sealed interface HomeEntry {
     val itemId: String
 
     data class App(override val itemId: String, val app: AppEntity) : HomeEntry
-    data class Folder(override val itemId: String, val folder: PopupFolderEntity, val apps: List<AppEntity>) : HomeEntry
+    data class Folder(
+        override val itemId: String,
+        val folder: PopupFolderEntity,
+        val apps: List<AppEntity>,
+        val shortcuts: List<ShortcutEntity> = emptyList(),
+    ) : HomeEntry
 }
 
 data class SetupStatus(
@@ -103,16 +109,19 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         homeDao.observeItems(),
         folderDao.observeFolders(),
         folderDao.observeItems(),
-    ) { apps, items, folders, folderItems ->
+        db.shortcutDao().observeAll(),
+    ) { apps, items, folders, folderItems, shortcuts ->
         val byId = apps.associateBy { it.id }
+        val shortcutsById = shortcuts.associateBy { it.id }
         val foldersById = folders.associateBy { it.id }
-        val folderApps = folderItems.groupBy { it.folderId }
-            .mapValues { (_, list) -> list.sortedBy { it.position }.mapNotNull { fi -> fi.appId?.let(byId::get) } }
+        val byFolder = folderItems.groupBy { it.folderId }.mapValues { (_, list) -> list.sortedBy { it.position } }
+        val folderApps = byFolder.mapValues { (_, list) -> list.mapNotNull { fi -> fi.appId?.let(byId::get) } }
+        val folderShortcuts = byFolder.mapValues { (_, list) -> list.mapNotNull { fi -> fi.shortcutId?.let(shortcutsById::get) } }
         val favorites = items.mapNotNull { item ->
             when (item.kind) {
                 HomeItemEntity.KIND_APP -> item.appId?.let(byId::get)?.let { HomeEntry.App(item.id, it) }
                 HomeItemEntity.KIND_FOLDER -> item.folderId?.let(foldersById::get)?.let { f ->
-                    HomeEntry.Folder(item.id, f, folderApps[f.id].orEmpty())
+                    HomeEntry.Folder(item.id, f, folderApps[f.id].orEmpty(), folderShortcuts[f.id].orEmpty())
                 }
                 else -> null
             }
@@ -161,6 +170,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             isDefaultLauncher = SystemActions.isDefaultLauncher(app),
             hasNotificationAccess = container.notifications.hasAccess(),
         )
+    }
+
+    fun setFavoritesAtBottom(value: Boolean) {
+        viewModelScope.launch { container.settings.setFavoritesAtBottom(value) }
     }
 
     fun completeOnboarding(appIds: List<String>) {
@@ -249,6 +262,41 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             folderDao.setApps(id, appIds, now)
             homeDao.addFolder(id, now)
         }
+    }
+
+    /** Adds one of an app's shortcuts to a folder; a null [folderId] creates a new folder named [newTitle]. */
+    fun addShortcutToFolder(app: AppEntity, shortcut: ShortcutInfoItem, folderId: String?, newTitle: String) {
+        viewModelScope.launch {
+            val entity = db.shortcutDao().getOrCreate(app.packageName, shortcut.id, app.userSerial, shortcut.label, now)
+            val target = folderId ?: UUID.randomUUID().toString().also { id ->
+                folderDao.insertFolder(PopupFolderEntity(id, newTitle.trim().ifEmpty { "Folder" }, createdAt = now, updatedAt = now))
+                homeDao.addFolder(id, now)
+            }
+            folderDao.addShortcut(target, entity.id, now)
+            repinShortcuts()
+        }
+    }
+
+    fun removeShortcutFromFolder(folderId: String, shortcut: ShortcutEntity) {
+        viewModelScope.launch {
+            folderDao.removeShortcut(folderId, shortcut.id)
+            db.shortcutDao().deleteUnused()
+            repinShortcuts()
+        }
+    }
+
+    fun launchStoredShortcut(shortcut: ShortcutEntity, bounds: Rect?) =
+        container.catalog.launchStoredShortcut(shortcut.packageName, shortcut.shortcutId, shortcut.userSerial, bounds)
+
+    suspend fun storedShortcutIcon(shortcut: ShortcutEntity, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+        container.catalog.storedShortcut(shortcut.packageName, shortcut.shortcutId, shortcut.userSerial)
+            ?.let { container.catalog.shortcutIcon(it) }
+            ?.let { runCatching { it.toBitmap(sizePx, sizePx).asImageBitmap() }.getOrNull() }
+    }
+
+    private suspend fun repinShortcuts() {
+        val all = db.shortcutDao().all()
+        container.catalog.pinShortcuts(all.groupBy({ it.packageName to it.userSerial }, { it.shortcutId }))
     }
 
     fun updateFolder(folderId: String, title: String, appIds: List<String>) {

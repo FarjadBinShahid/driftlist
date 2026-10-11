@@ -22,7 +22,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Reorder
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -60,7 +75,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.farjad.driftlist.data.db.AppEntity
 import dev.farjad.driftlist.system.apps.IconCache
-import dev.farjad.driftlist.system.apps.ShortcutInfoItem
+import dev.farjad.driftlist.data.db.ShortcutEntity
 import dev.farjad.driftlist.system.notifications.NotifAction
 import dev.farjad.driftlist.system.notifications.NotifItem
 import dev.farjad.driftlist.ui.theme.RadiusTokens
@@ -133,7 +148,13 @@ private fun SheetHeader(app: AppEntity, icons: IconCache, onIconClick: (() -> Un
 
 /** An app row inside a sheet (surface colours, not wallpaper colours). */
 @Composable
-fun SheetAppRow(app: AppEntity, icons: IconCache, onClick: () -> Unit, trailing: @Composable (() -> Unit)? = null) {
+fun SheetAppRow(
+    app: AppEntity,
+    icons: IconCache,
+    onClick: () -> Unit,
+    supporting: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -144,110 +165,51 @@ fun SheetAppRow(app: AppEntity, icons: IconCache, onClick: () -> Unit, trailing:
         horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
     ) {
         AppIcon(app.id, icons, SizeTokens.iconList)
-        Text(
-            app.label,
-            style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                app.label,
+                style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            supporting?.let { Text(it, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant)) }
+        }
         trailing?.invoke()
     }
 }
 
 @Composable
-fun OptionRow(label: String, onClick: () -> Unit, destructive: Boolean = false) {
-    Text(
-        label,
-        style = TypeTokens.body.style(
-            if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-        ),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = SizeTokens.touchMin)
-            .clickable(onClick = onClick)
-            .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s4),
-    )
-}
-
-// --- S07 app pop-up ---------------------------------------------------------------------------
-
-/** S07: swiping right on an app. Its notifications (with reply), then its shortcuts. */
-@Composable
-fun AppPopupSheet(
-    app: AppEntity,
-    icons: IconCache,
-    notifications: List<NotifItem>,
-    shortcuts: List<ShortcutInfoItem>,
-    shortcutIcon: suspend (ShortcutInfoItem, Int) -> ImageBitmap?,
-    onOpenApp: () -> Unit,
-    onOpenNotification: (NotifItem) -> Unit,
-    onDismissNotification: (NotifItem) -> Unit,
-    onReply: (NotifItem, String) -> Boolean,
-    onRunAction: (NotifAction) -> Unit,
-    onShortcut: (ShortcutInfoItem) -> Unit,
-    onClose: () -> Unit,
+fun OptionRow(
+    label: String,
+    onClick: () -> Unit,
+    destructive: Boolean = false,
+    icon: ImageVector? = null,
+    supporting: String? = null,
 ) {
-    DriftSheet(onClose) {
-        SheetHeader(app, icons)
-        LazyColumn(
-            modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp),
-            verticalArrangement = Arrangement.spacedBy(SpaceTokens.s3),
-            contentPadding = PaddingValues(horizontal = SpaceTokens.s5),
-        ) {
-            if (notifications.isEmpty()) {
-                item {
-                    Text(
-                        "Nothing new here.",
-                        style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurfaceVariant),
-                        modifier = Modifier.padding(horizontal = SpaceTokens.s4, vertical = SpaceTokens.s2),
-                    )
-                }
-            }
-            items(notifications, key = { it.key }) { item ->
-                NotificationCard(
-                    item = item,
-                    onOpen = { onOpenNotification(item) },
-                    onDismiss = { onDismissNotification(item) },
-                    onReply = { text -> onReply(item, text) },
-                    onAction = onRunAction,
-                )
-            }
-            if (shortcuts.isNotEmpty()) {
-                item { HorizontalDivider(Modifier.padding(vertical = SpaceTokens.s3)) }
-                items(shortcuts, key = { "sc:" + it.id }) { sc ->
-                    ShortcutRow(sc, shortcutIcon) { onShortcut(sc) }
-                }
-            }
-        }
-        TextButton(
-            onClick = onOpenApp,
-            modifier = Modifier.align(Alignment.End).padding(horizontal = SpaceTokens.s4),
-        ) { Text("Open ${app.label}") }
-    }
-}
-
-@Composable
-private fun ShortcutRow(item: ShortcutInfoItem, iconLoader: suspend (ShortcutInfoItem, Int) -> ImageBitmap?, onClick: () -> Unit) {
-    val px = with(LocalDensity.current) { SizeTokens.iconList.roundToPx() }
-    val icon by produceState<ImageBitmap?>(null, item.id) { value = iconLoader(item, px) }
+    val color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = SizeTokens.listRow)
+            .heightIn(min = SizeTokens.sheetRow)
             .clickable(onClick = onClick)
-            .padding(horizontal = SpaceTokens.s4),
+            .padding(horizontal = SpaceTokens.s5),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
     ) {
-        Box(Modifier.size(SizeTokens.iconList)) { icon?.let { Image(it, null, Modifier.size(SizeTokens.iconList)) } }
-        Text(item.label, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.size(SizeTokens.sheetRow), contentAlignment = Alignment.Center) {
+            icon?.let { Icon(it, contentDescription = null, tint = color, modifier = Modifier.size(SizeTokens.sheetIcon)) }
+        }
+        Column(Modifier.padding(vertical = SpaceTokens.s3)) {
+            Text(label, style = TypeTokens.body.style(color))
+            supporting?.let { Text(it, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant)) }
+        }
     }
 }
 
+// --- notification card (used by the pop-up card) ----------------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NotificationCard(
+internal fun NotificationCard(
     item: NotifItem,
     onOpen: () -> Unit,
     onDismiss: () -> Unit,
@@ -335,21 +297,24 @@ private fun NotificationCard(
 
 // --- S08 app options --------------------------------------------------------------------------
 
-/** S08: long-press options for one app. */
+/** S08: long-press options for one app. Rarer actions sit under Advanced, as on the reference. */
 @Composable
 fun AppOptionsSheet(
     app: AppEntity,
     icons: IconCache,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
+    onEditFavorites: () -> Unit,
     onRename: (String) -> Unit,
     onChangeIcon: () -> Unit,
     onToggleHidden: () -> Unit,
     onAppInfo: () -> Unit,
     onUninstall: () -> Unit,
+    onOpenSettings: () -> Unit,
     onClose: () -> Unit,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
+    var advanced by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf(app.label) }
     DriftSheet(onClose) {
         SheetHeader(app, icons, onIconClick = onChangeIcon)
@@ -371,25 +336,47 @@ fun AppOptionsSheet(
                 TextButton(onClick = { onRename(name) }) { Text("Save") }
             }
         } else {
-            OptionRow(if (isFavorite) "Remove from favorites" else "Add to favorites", onToggleFavorite)
-            OptionRow("Rename", { renaming = true })
-            OptionRow("Change icon", onChangeIcon)
-            OptionRow(if (app.hidden) "Show in app list" else "Hide from app list", onToggleHidden)
-            OptionRow("App info", onAppInfo)
-            if (!app.isSystem) OptionRow("Uninstall", onUninstall, destructive = true)
+            OptionRow(
+                if (isFavorite) "Remove from favorites" else "Add to favorites",
+                onToggleFavorite,
+                icon = if (isFavorite) Icons.Filled.Star else Icons.Outlined.StarOutline,
+            )
+            if (isFavorite) OptionRow("Edit favorites", onEditFavorites, icon = Icons.Outlined.Reorder)
+            OptionRow("App info", onAppInfo, icon = Icons.Outlined.Info)
+            if (!app.isSystem) OptionRow("Uninstall", onUninstall, destructive = true, icon = Icons.Outlined.Delete)
+            OptionRow(
+                "More",
+                { advanced = !advanced },
+                icon = if (advanced) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+            )
+            if (advanced) {
+                OptionRow("Rename", { renaming = true }, icon = Icons.Outlined.Edit)
+                OptionRow("Change icon", onChangeIcon, icon = Icons.Outlined.Image)
+                OptionRow(
+                    if (app.hidden) "Show in app list" else "Hide from app list",
+                    onToggleHidden,
+                    icon = if (app.hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                )
+            }
+            HorizontalDivider(Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s2))
+            OptionRow("Driftlist settings", onOpenSettings, icon = Icons.Outlined.Settings)
         }
     }
 }
 
 // --- S11 folder -------------------------------------------------------------------------------
 
-/** S11: an open pop-up folder. */
+/** S11: an open pop-up folder: its apps, then any shortcuts added from app pop-ups. */
 @Composable
 fun FolderSheet(
     title: String,
     apps: List<AppEntity>,
+    shortcuts: List<ShortcutEntity>,
     icons: IconCache,
+    shortcutIcon: suspend (ShortcutEntity, Int) -> ImageBitmap?,
     onLaunch: (AppEntity) -> Unit,
+    onLaunchShortcut: (ShortcutEntity) -> Unit,
+    onRemoveShortcut: (ShortcutEntity) -> Unit,
     onEdit: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -398,16 +385,50 @@ fun FolderSheet(
             SheetTitle(title, Modifier.weight(1f))
             TextButton(onClick = onEdit, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text("Edit") }
         }
-        if (apps.isEmpty()) {
+        if (apps.isEmpty() && shortcuts.isEmpty()) {
             Text(
-                "This folder is empty. Tap Edit to add apps.",
+                "This folder is empty. Tap Edit to add apps, or long-press a shortcut in an app's pop-up.",
                 style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurfaceVariant),
                 modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s4),
             )
         }
         LazyColumn(Modifier.heightIn(max = 480.dp)) {
             items(apps, key = { it.id }) { app -> SheetAppRow(app, icons, onClick = { onLaunch(app) }) }
+            items(shortcuts, key = { "sc:" + it.id }) { sc ->
+                FolderShortcutRow(sc, shortcutIcon, onClick = { onLaunchShortcut(sc) }, onRemove = { onRemoveShortcut(sc) })
+            }
         }
+    }
+}
+
+@Composable
+private fun FolderShortcutRow(
+    shortcut: ShortcutEntity,
+    iconLoader: suspend (ShortcutEntity, Int) -> ImageBitmap?,
+    onClick: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val px = with(LocalDensity.current) { SizeTokens.iconList.roundToPx() }
+    val icon by produceState<ImageBitmap?>(null, shortcut.id) { value = iconLoader(shortcut, px) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = SizeTokens.listRow)
+            .clickable(onClick = onClick)
+            .semantics { customActions = listOf(CustomAccessibilityAction("Remove from folder") { onRemove(); true }) }
+            .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
+    ) {
+        Box(Modifier.size(SizeTokens.iconList)) { icon?.let { Image(it, null, Modifier.size(SizeTokens.iconList)) } }
+        Text(
+            shortcut.label,
+            style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(onClick = onRemove) { Text("Remove") }
     }
 }
 

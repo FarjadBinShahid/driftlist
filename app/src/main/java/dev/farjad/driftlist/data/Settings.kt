@@ -21,6 +21,8 @@ data class SettingsSnapshot(
     val swipeUpSearch: Boolean = true,
     val searchIncludesHidden: Boolean = true,
     val usageBreaker: Boolean = false,
+    /** false = favorites follow the clock (the reference's layout); true = anchored to the bottom. */
+    val favoritesAtBottom: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -30,6 +32,7 @@ class Settings(private val context: Context) {
         val swipeUpSearch = booleanPreferencesKey("swipe_up_search")
         val searchIncludesHidden = booleanPreferencesKey("search_includes_hidden")
         val usageBreaker = booleanPreferencesKey("usage_breaker")
+        val favoritesAtBottom = booleanPreferencesKey("favorites_at_bottom")
     }
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -39,6 +42,7 @@ class Settings(private val context: Context) {
             swipeUpSearch = p[Keys.swipeUpSearch] ?: true,
             searchIncludesHidden = p[Keys.searchIncludesHidden] ?: true,
             usageBreaker = p[Keys.usageBreaker] ?: false,
+            favoritesAtBottom = p[Keys.favoritesAtBottom] ?: false,
         )
     }
 
@@ -51,6 +55,7 @@ class Settings(private val context: Context) {
     suspend fun setSwipeUpSearch(value: Boolean) = context.dataStore.edit { it[Keys.swipeUpSearch] = value }
     suspend fun setSearchIncludesHidden(value: Boolean) = context.dataStore.edit { it[Keys.searchIncludesHidden] = value }
     suspend fun setUsageBreaker(value: Boolean) = context.dataStore.edit { it[Keys.usageBreaker] = value }
+    suspend fun setFavoritesAtBottom(value: Boolean) = context.dataStore.edit { it[Keys.favoritesAtBottom] = value }
 
     /** For backup/restore. */
     suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap().mapKeys { it.key.name }
@@ -62,5 +67,6 @@ class Settings(private val context: Context) {
         (values["swipe_up_search"] as? Boolean)?.let { p[Keys.swipeUpSearch] = it }
         (values["search_includes_hidden"] as? Boolean)?.let { p[Keys.searchIncludesHidden] = it }
         (values["usage_breaker"] as? Boolean)?.let { p[Keys.usageBreaker] = it }
+        (values["favorites_at_bottom"] as? Boolean)?.let { p[Keys.favoritesAtBottom] = it }
     }
 }

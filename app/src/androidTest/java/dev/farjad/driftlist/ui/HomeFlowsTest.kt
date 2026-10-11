@@ -159,6 +159,7 @@ class HomeFlowsTest {
         home {
             waitForText("Clock")
             onNodeWithText("Clock").performTouchInput { longClick() }
+            onNodeWithText("More").performClick()
             onNodeWithText("Rename").performClick()
             searchField().performTextClearance()
             searchField().performTextInput(longName)
@@ -167,6 +168,7 @@ class HomeFlowsTest {
             onNodeWithText(longName).assertIsDisplayed()
 
             onNodeWithText(longName).performTouchInput { longClick() }
+            onNodeWithText("More").performClick()
             onNodeWithText("Rename").performClick()
             searchField().performTextClearance()
             onNodeWithText("Save").performClick()
@@ -184,6 +186,7 @@ class HomeFlowsTest {
             jumpTo("M")
             waitForText("Maps")
             onNodeWithText("Maps").performTouchInput { longClick() }
+            onNodeWithText("More").performClick()
             onNodeWithText("Hide from app list").performClick()
             waitUntil(timeoutMillis = 5_000) { onAllNodes(hasText("Maps")).fetchSemanticsNodes().isEmpty() }
             pressBack()

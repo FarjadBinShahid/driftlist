@@ -113,7 +113,7 @@ def generate(t, package):
     w = t["wave"]
     sc = t["scrim"]
     out.append("object WaveTokens {")
-    out.append("    const val influenceLetters = %d" % w["influence-letters"])
+    out.append("    const val influenceFraction = %sf" % w["influence-fraction"])
     out.append("    const val maxScale = %sf" % w["max-scale"])
     out.append("    val maxOffset = %d.dp" % w["max-offset-dp"])
     out.append("}")

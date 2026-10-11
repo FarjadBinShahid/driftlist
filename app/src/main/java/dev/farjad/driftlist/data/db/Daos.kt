@@ -150,6 +150,38 @@ abstract class HomeDao {
 }
 
 @Dao
+abstract class ShortcutDao {
+    @Query("select * from shortcut")
+    abstract fun observeAll(): Flow<List<ShortcutEntity>>
+
+    @Query("select * from shortcut")
+    abstract suspend fun all(): List<ShortcutEntity>
+
+    @Query("select * from shortcut where package_name = :pkg and shortcut_id = :shortcutId and user_serial = :serial")
+    abstract suspend fun find(pkg: String, shortcutId: String, serial: Long): ShortcutEntity?
+
+    @Insert
+    abstract suspend fun insert(shortcut: ShortcutEntity)
+
+    /** Shortcuts no folder or favorite uses any more. */
+    @Query(
+        """
+        delete from shortcut where id not in (select shortcut_id from folder_item where shortcut_id is not null)
+        and id not in (select shortcut_id from home_item where shortcut_id is not null)
+        """,
+    )
+    abstract suspend fun deleteUnused()
+
+    @Transaction
+    open suspend fun getOrCreate(pkg: String, shortcutId: String, serial: Long, label: String, now: Long): ShortcutEntity {
+        find(pkg, shortcutId, serial)?.let { return it }
+        val entity = ShortcutEntity(UUID.randomUUID().toString(), pkg, shortcutId, serial, label, now, now)
+        insert(entity)
+        return entity
+    }
+}
+
+@Dao
 abstract class FolderDao {
     @Query("select * from popup_folder")
     abstract fun observeFolders(): Flow<List<PopupFolderEntity>>
@@ -175,16 +207,36 @@ abstract class FolderDao {
     @Query("delete from popup_folder where id = :id")
     abstract suspend fun delete(id: String)
 
-    @Query("delete from folder_item where folder_id = :folderId")
-    abstract suspend fun clearItems(folderId: String)
+    @Query("delete from folder_item where folder_id = :folderId and kind = 'app'")
+    abstract suspend fun clearApps(folderId: String)
 
+    @Query("select coalesce(max(position), -1) from folder_item where folder_id = :folderId")
+    abstract suspend fun maxPosition(folderId: String): Int
+
+    @Query("delete from folder_item where folder_id = :folderId and shortcut_id = :shortcutId")
+    abstract suspend fun removeShortcut(folderId: String, shortcutId: String)
+
+    @Query("select count(*) from folder_item where folder_id = :folderId and shortcut_id = :shortcutId")
+    abstract suspend fun countShortcut(folderId: String, shortcutId: String): Int
+
+    /** Replaces the folder's apps; shortcuts in it are kept and stay after the apps. */
     @Transaction
     open suspend fun setApps(folderId: String, appIds: List<String>, now: Long) {
-        clearItems(folderId)
+        clearApps(folderId)
         insertItems(
             appIds.mapIndexed { i, appId ->
-                FolderItemEntity(UUID.randomUUID().toString(), folderId, i, "app", appId = appId, createdAt = now)
+                FolderItemEntity(UUID.randomUUID().toString(), folderId, i - appIds.size, "app", appId = appId, createdAt = now)
             },
+        )
+    }
+
+    @Transaction
+    open suspend fun addShortcut(folderId: String, shortcutId: String, now: Long) {
+        if (countShortcut(folderId, shortcutId) > 0) return
+        insertItems(
+            listOf(
+                FolderItemEntity(UUID.randomUUID().toString(), folderId, maxPosition(folderId) + 1, "shortcut", shortcutId = shortcutId, createdAt = now),
+            ),
         )
     }
 }

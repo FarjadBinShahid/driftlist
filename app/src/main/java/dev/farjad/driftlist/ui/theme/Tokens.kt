@@ -60,10 +60,10 @@ object TypeTokens {
     val clock = TypeToken(64f, 68f, FontWeight(300), -1.0f)
     val clockSmall = TypeToken(40f, 44f, FontWeight(300), -0.5f)
     val date = TypeToken(16f, 22f, FontWeight(500), 0.2f)
-    val favorite = TypeToken(22f, 28f, FontWeight(500), 0f)
-    val list = TypeToken(18f, 24f, FontWeight(400), 0f)
+    val favorite = TypeToken(17f, 24f, FontWeight(500), 0f)
+    val list = TypeToken(17f, 24f, FontWeight(500), 0f)
     val letterHeader = TypeToken(14f, 20f, FontWeight(700), 1.2f)
-    val preview = TypeToken(13f, 18f, FontWeight(400), 0f)
+    val preview = TypeToken(14f, 19f, FontWeight(400), 0f)
     val alphabet = TypeToken(11f, 14f, FontWeight(600), 0f)
     val title = TypeToken(20f, 28f, FontWeight(600), 0f)
     val body = TypeToken(16f, 24f, FontWeight(400), 0f)
@@ -88,22 +88,31 @@ object SpaceTokens {
 }
 
 object SizeTokens {
-    val favoriteRow = 56.dp
-    val listRow = 48.dp
+    val favoriteRow = 54.dp
+    val listRow = 54.dp
     val touchMin = 48.dp
-    val iconFavorite = 40.dp
-    val iconList = 32.dp
+    val iconFavorite = 42.dp
+    val iconList = 42.dp
     val iconSheet = 48.dp
     val alphabetStripWidth = 32.dp
     val alphabetTouchWidth = 48.dp
     val alphabetBubble = 56.dp
     val actionButton = 56.dp
-    val edgeGutter = 24.dp
+    val edgeGutter = 40.dp
     val sheetHandleWidth = 32.dp
     val sheetHandleHeight = 4.dp
     val settingsRow = 64.dp
     val mediaCardHeight = 88.dp
-    const val headerTopSpaceRatio = 0.18f
+    const val headerTopSpaceRatio = 0.13f
+    const val alphabetTopRatio = 0.24f
+    const val alphabetBottomRatio = 0.91f
+    val popupCardWidth = 280.dp
+    val popupHeader = 48.dp
+    val popupRow = 52.dp
+    val iconPopup = 36.dp
+    val sheetRow = 52.dp
+    val sheetIcon = 24.dp
+    val rowAction = 48.dp
 }
 
 object RadiusTokens {
@@ -133,9 +142,9 @@ object MotionTokens {
 }
 
 object WaveTokens {
-    const val influenceLetters = 4
-    const val maxScale = 2.4f
-    val maxOffset = 28.dp
+    const val influenceFraction = 0.55f
+    const val maxScale = 1.15f
+    val maxOffset = 140.dp
 }
 
 object ScrimTokens {

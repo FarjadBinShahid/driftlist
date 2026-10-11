@@ -145,6 +145,44 @@ class AppCatalog(
             .onFailure { Log.w(TAG, "shortcut launch failed", it) }
     }
 
+    private fun userFor(serial: Long): UserHandle? = userManager.getUserForSerialNumber(serial)
+
+    /** Looks up a stored shortcut so its icon can be drawn; null if the app no longer offers it. */
+    fun storedShortcut(packageName: String, shortcutId: String, userSerial: Long): ShortcutInfoItem? {
+        val user = userFor(userSerial) ?: return null
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return null
+        val query = LauncherApps.ShortcutQuery()
+            .setPackage(packageName)
+            .setShortcutIds(listOf(shortcutId))
+            .setQueryFlags(
+                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED,
+            )
+        val info = runCatching { launcherApps.getShortcuts(query, user)?.firstOrNull() }.getOrNull() ?: return null
+        return ShortcutInfoItem(info.id, (info.shortLabel ?: info.longLabel ?: info.id).toString(), info)
+    }
+
+    fun launchStoredShortcut(packageName: String, shortcutId: String, userSerial: Long, sourceBounds: Rect?): Boolean {
+        val user = userFor(userSerial) ?: return false
+        return runCatching { launcherApps.startShortcut(packageName, shortcutId, sourceBounds, null, user) }
+            .onFailure { Log.w(TAG, "stored shortcut launch failed", it) }
+            .isSuccess
+    }
+
+    /**
+     * Pins every shortcut a folder uses so dynamic shortcuts don't vanish when the app rotates
+     * them. LauncherApps wants the full pinned set per package and user.
+     */
+    fun pinShortcuts(byPackage: Map<Pair<String, Long>, List<String>>) {
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return
+        for ((key, ids) in byPackage) {
+            val user = userFor(key.second) ?: continue
+            runCatching { launcherApps.pinShortcuts(key.first, ids, user) }
+                .onFailure { Log.w(TAG, "pin failed for ${key.first}", it) }
+        }
+    }
+
     fun openAppInfo(app: AppEntity, sourceBounds: Rect?) {
         val info = infos[app.id] ?: return
         runCatching { launcherApps.startAppDetailsActivity(info.componentName, info.user, sourceBounds, null) }

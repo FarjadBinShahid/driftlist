@@ -43,6 +43,20 @@ object SystemActions {
         return resolved?.activityInfo?.packageName == context.packageName
     }
 
+    /**
+     * True when Driftlist wasn't installed by the Play Store (an APK, adb, another store). On
+     * Android 13+ those installs need "Allow restricted settings" before notification or usage access.
+     */
+    fun isSideloaded(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        val installer = runCatching {
+            context.packageManager.getInstallSourceInfo(context.packageName).installingPackageName
+        }.getOrNull()
+        return installer != "com.android.vending"
+    }
+
+    fun usageAccessIntent(): Intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+
     /** For API < 29 (and as a fallback): the system "Home app" settings page. */
     fun homeSettingsIntent(): Intent = Intent(Settings.ACTION_HOME_SETTINGS)
 

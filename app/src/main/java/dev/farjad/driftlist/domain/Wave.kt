@@ -1,21 +1,22 @@
 package dev.farjad.driftlist.domain
 
-import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.cos
 
 /**
  * Pure maths for the wave alphabet, kept out of Compose so it can be unit tested.
+ *
+ * The strip is a list of entries: the favorites star, the letters that have apps, and the
+ * settings circle. Letters slide sideways in a V centred on the finger.
  */
 object Wave {
     /**
-     * How strongly a letter reacts to the finger: 1 at the finger, easing to 0 at [influence]
-     * slots away on a raised-cosine curve.
+     * How far a letter moves toward the finger: 1 at the finger, falling off linearly to 0 at
+     * [influence] slots away (a V shape, as measured on the reference app).
      */
-    fun intensity(distanceInSlots: Float, influence: Int): Float {
+    fun intensity(distanceInSlots: Float, influence: Float): Float {
+        if (influence <= 0f) return 0f
         val d = abs(distanceInSlots)
-        if (d >= influence) return 0f
-        return ((cos(PI * d / influence) + 1.0) / 2.0).toFloat()
+        return (1f - d / influence).coerceIn(0f, 1f)
     }
 
     /** Index of the slot under [y] for a strip of [height] split into [count] equal slots. */

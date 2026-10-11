@@ -81,6 +81,27 @@ class BackupTest {
     }
 
     @Test
+    fun roundTripKeepsShortcutsInFolders() = runBlocking {
+        source.appDao().sync(listOf(app("a")))
+        source.folderDao().insertFolder(PopupFolderEntity("f", "Chats", createdAt = 1, updatedAt = 1))
+        source.folderDao().setApps("f", listOf("a"), 1)
+        val sc = source.shortcutDao().getOrCreate("pkg.a", "compose", 0, "New message", 1)
+        source.folderDao().addShortcut("f", sc.id, 1)
+        source.homeDao().addFolder("f", 1)
+        val bytes = backupOf(source)
+
+        target.appDao().sync(listOf(app("a")))
+        Backup(target, settings).restore(ByteArrayInputStream(bytes))
+
+        val items = target.folderDao().items().sortedBy { it.position }
+        assertEquals(listOf("app", "shortcut"), items.map { it.kind })
+        val restored = target.shortcutDao().all().single()
+        assertEquals("compose", restored.shortcutId)
+        assertEquals("New message", restored.label)
+        assertEquals(restored.id, items.last().shortcutId)
+    }
+
+    @Test
     fun restoreClearsEditsNotInTheBackup() = runBlocking {
         source.appDao().sync(listOf(app("a")))
         val bytes = backupOf(source)
