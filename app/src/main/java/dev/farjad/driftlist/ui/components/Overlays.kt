@@ -70,7 +70,7 @@ fun SearchOverlay(
     LaunchedEffect(Unit) { focus.requestFocus() }
     BackHandler(onBack = onClose)
 
-    Surface(color = MaterialTheme.colorScheme.background.copy(alpha = 0.97f), modifier = Modifier.fillMaxSize()) {
+    Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding()) {
             OutlinedTextField(
                 value = query,
@@ -208,13 +208,28 @@ fun HostedWidget(
     val density = LocalDensity.current
     val heightDp = with(density) { maxOf(info.minHeight, info.minResizeHeight).toDp() }.coerceIn(48.dp, 320.dp)
     AndroidView(
-        factory = { ctx -> host.createView(ctx, appWidgetId) },
-        update = { view: AppWidgetHostView ->
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && view.width > 0) {
-                val w = view.width / view.resources.displayMetrics.density
-                view.updateAppWidgetSize(Bundle(), listOf(SizeF(w, heightDp.value)))
+        factory = { ctx ->
+            host.createView(ctx, appWidgetId).apply {
+                // Widgets lay themselves out from the size the host reports. Report it on every
+                // layout change, or they render at 0x0 (blank).
+                addOnLayoutChangeListener { v, l, t, r, b, oldL, oldT, oldR, oldB ->
+                    if (r - l != oldR - oldL || b - t != oldB - oldT) reportSize(v as AppWidgetHostView)
+                }
             }
         },
         modifier = modifier.fillMaxWidth().height(heightDp),
     )
+}
+
+private fun reportSize(view: AppWidgetHostView) {
+    val d = view.resources.displayMetrics.density
+    val w = view.width / d
+    val h = view.height / d
+    if (w <= 0f || h <= 0f) return
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        view.updateAppWidgetSize(Bundle(), listOf(SizeF(w, h)))
+    } else {
+        @Suppress("DEPRECATION")
+        view.updateAppWidgetSize(Bundle(), w.toInt(), h.toInt(), w.toInt(), h.toInt())
+    }
 }
