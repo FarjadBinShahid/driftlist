@@ -113,6 +113,7 @@ object SizeTokens {
     val sheetRow = 52.dp
     val sheetIcon = 24.dp
     val rowAction = 48.dp
+    val alphabetSlot = 18.dp
 }
 
 object RadiusTokens {

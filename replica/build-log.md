@@ -32,6 +32,20 @@ One line per screen. Screenshots are in `clone-screens/`, taken on the `Medium_P
 | S30 | Time-check reminder | 2026-10-11 | done | screenshot not captured (the notice expires after 60 s) | the session survives short detours; verified 5- and 10-minute reminders by the notification channel timestamps |
 | S31 | Notification Summary | — | not started | M3 | — |
 
+## Milestone 3a (2026-10-12): measured layout + last must-haves
+
+| ID | screen | status | notes |
+| --- | --- | --- | --- |
+| S05 | Home | done (layout) | favorites under the clock by default, with a "favorites at the bottom" setting; 40 dp column; clock at 13%; one 54 dp row size; notification age + > button. Media card, suggestions and shortcut button are still M3b |
+| S06 | App list + wave | done | star / letters with apps / settings circle at ~18 dp each in the lower band; V-shaped sideways wave; section a third of the way down |
+| S07 | App pop-up | done | anchored card (280 dp) at the swiped row; long-press a shortcut to add it to a folder |
+| S08 | Options | done | icons, Edit favorites, More group (rename, icon, hide), settings link |
+| S11 | Folder | done | shows shortcuts after apps; remove per shortcut; shortcuts pinned and included in backups |
+| S15 | Search | done (M2 scope) | "Enter opens this" on the top result; Google Play row |
+| S29 | Permission explainers | done | notification and usage access, with the restricted-settings steps for sideloaded installs |
+
+Harder than expected: Compose's Popup positions in window coordinates, so the card has to be placed from the row's window bounds, not its parent. Letters spread across the whole band on phones with few apps until the slot size was fixed at the measured ~18 dp.
+
 ## Bugs found and fixed during the milestone 2 run-through
 
 1. **Upgrading from 0.1.0 would have wiped favorites.** Onboarding showed for anyone without the new "onboarding done" flag, and finishing it replaced the favorites. Now it's skipped and marked done when favorites already exist.

@@ -5,14 +5,14 @@ Notification access prompt card,onboarding,must,yes,yes,M2
 Home screen favorites list (icon + label),home,must,yes,yes,free; S05
 Clock and date header (tap opens clock / calendar),home,must,yes,yes,free; S05
 Full alphabetical app list with letter headers,app list,must,yes,yes,free; S06
-Wave alphabet scroller on right edge,app list,must,yes,yes,free; magnification wave + live scroll; the core interaction
+Wave alphabet scroller on right edge,app list,must,yes,yes,"M3a: star, letters with apps only, settings circle; V-shaped sideways wave measured on the reference; section lands a third of the way down"
 Haptic tick per letter (toggle),app list,should,yes,partial,free; Settings > Features
 Locale-aware alphabet buckets (# and extra letters),app list,should,yes,yes,free; ICU AlphabeticIndex; help 155
 Live app list updates on install / uninstall / update,core,must,yes,yes,free; LauncherApps callbacks
 Work profile / multi-user apps shown,core,should,yes,partial,free; user_handle on LauncherApp
 Recently installed list in app list footer,app list,should,yes,no,free; S28
-Inline notification preview on app rows,notifications,must,yes,yes,free; NotificationListenerService
-Swipe right on app opens app pop-up,pop-ups,must,yes,yes,free; S07
+Inline notification preview on app rows,notifications,must,yes,yes,M3a: shows the age (Messages · 4m) and a > button that opens the pop-up
+Swipe right on app opens app pop-up,pop-ups,must,yes,yes,M3a: floating card anchored at the swiped row (measured on the reference)
 Notifications in app pop-up: expand and dismiss,notifications,must,yes,yes,"M2: full text, swipe-left dismiss, action buttons"
 Inline reply to notifications from home,notifications,must,yes,yes,M2: verified end to end with an SMS on the emulator
 App shortcuts in app pop-up,pop-ups,must,yes,yes,M2: needs Driftlist to be the default launcher
@@ -20,12 +20,12 @@ Hide shortcuts per app,pop-ups,could,yes,no,free; help 84
 Swipe down anywhere opens notification shade,gestures,must,yes,yes,free; help 98
 Long swipe up opens search (quick swipe scrolls),gestures,must,yes,yes,M2
 HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,partial,M2: Home-on-home opens search; the 3-second return to list position is not built
-App options sheet on long-press,home,must,yes,yes,M2
+App options sheet on long-press,home,must,yes,yes,"M3a: icons, Edit favorites for favorites, rarer actions under More, settings link"
 Rename app,home,must,yes,yes,M2: renamed apps re-sort under their new name
 Hide app from app list + hidden apps screen,wellbeing,must,yes,yes,M2
 Edit favorites: reorder / add / remove,home,must,yes,yes,M2: drag handle + TalkBack move actions
 Suggested apps (most used) below favorites; long-press to hide,home,should,yes,no,free; usage counters
-Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,partial,M2: apps only; shortcuts in folders not yet
+Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,yes,M3a: long-press a shortcut in an app pop-up to add it to a folder; shortcuts are pinned and backed up; verified on the emulator
 Pop-up folders shown as categories in app list,pop-ups,could,yes,no,pro
 Customizable app pop-ups (used like folders),pop-ups,could,yes,no,pro
 Search apps,search,must,yes,yes,"M2: prefix, word, initials, substring; accents ignored"
@@ -71,7 +71,7 @@ Hide status bar,theming,could,yes,no,pro
 Plug and Play: music apps appear when headphones connect,home,could,yes,no,pro; AudioDeviceCallback
 Flashlight-on reminder row,home,could,yes,no,free; v1.16.28; CameraManager torch callback
 Backup to local file + restore,backup,must,yes,yes,"M2: JSON via the system file picker; verified save, wipe, restore"
-Permission explainer dialogs with deep links,core,must,yes,partial,M2: setup cards and settings rows deep-link; no dedicated explainer dialogs
+Permission explainer dialogs with deep links,core,must,yes,yes,"M3a: explainer dialogs for notification and usage access, with restricted-settings steps for sideloaded installs (Android 13+)"
 Anycons / Niagara Dots icon art,icons,could,yes,skip,their artwork; draw or license your own icon set
 Built-in wallpapers / artist themes / clock designs,theming,could,yes,skip,their artwork; create your own
 Anycons ML app categorisation + crowd icon suggestions,icons,could,yes,skip,server-side data the app owns

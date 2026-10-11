@@ -94,9 +94,14 @@ fun WaveAlphabet(
     val intensity = remember { Animatable(0f) }
 
     // The band the entries occupy, as measured on the reference: roughly a quarter of the way down to near the bottom.
-    val bandTop = heightPx * SizeTokens.alphabetTopRatio
-    val bandHeight = (heightPx * (SizeTokens.alphabetBottomRatio - SizeTokens.alphabetTopRatio)).coerceAtLeast(1f)
-    val slot = bandHeight / entries.size
+    // Fixed letter spacing as on the reference (about 18 dp), centred in the band; it only shrinks
+    // when a long alphabet would not fit.
+    val bandStart = heightPx * SizeTokens.alphabetTopRatio
+    val bandSpan = (heightPx * (SizeTokens.alphabetBottomRatio - SizeTokens.alphabetTopRatio)).coerceAtLeast(1f)
+    val slotPx = with(density) { SizeTokens.alphabetSlot.toPx() }
+    val slot = minOf(slotPx, bandSpan / entries.size)
+    val bandHeight = slot * entries.size
+    val bandTop = bandStart + (bandSpan - bandHeight) / 2
 
     Box(
         modifier = modifier
