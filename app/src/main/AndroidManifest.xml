@@ -7,12 +7,24 @@
     <!-- "Uninstall" in the app options sheet. -->
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
-    <!-- Package visibility (Android 11+): see every launchable app. -->
+    <!-- Time checks (Usage Breaker): reminders are notifications; usage access is granted by the user in Settings. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- Package visibility (Android 11+): every launchable app, icon packs, web search. -->
     <queries>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
+        <intent><action android:name="org.adw.launcher.THEMES" /></intent>
+        <intent><action android:name="com.novalauncher.THEME" /></intent>
+        <intent><action android:name="com.gau.go.launcherex.theme" /></intent>
+        <intent><action android:name="org.adw.launcher.icons.ACTION_PICK_ICON" /></intent>
+        <intent><action android:name="android.intent.action.WEB_SEARCH" /></intent>
+        <intent><action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" /></intent>
     </queries>
 
     <application
@@ -43,6 +55,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ui.settings.SettingsActivity"
+            android:exported="false"
+            android:label="Driftlist settings"
+            android:taskAffinity="dev.farjad.driftlist.settings"
+            android:theme="@style/Theme.Driftlist.Settings" />
 
         <service
             android:name=".system.notifications.DriftNotificationListener"

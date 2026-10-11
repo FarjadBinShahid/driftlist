@@ -1,16 +1,28 @@
 package dev.farjad.driftlist.ui.home
 
 import android.app.Application
+import android.content.Intent
 import android.graphics.Rect
 import android.icu.text.Collator
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.farjad.driftlist.DriftlistApp
+import dev.farjad.driftlist.data.SettingsSnapshot
 import dev.farjad.driftlist.data.db.AppEntity
+import dev.farjad.driftlist.data.db.HomeItemEntity
+import dev.farjad.driftlist.data.db.PopupFolderEntity
+import dev.farjad.driftlist.data.db.WidgetEntity
 import dev.farjad.driftlist.domain.AlphabetIndexer
+import dev.farjad.driftlist.domain.AppSearch
 import dev.farjad.driftlist.system.SystemActions
+import dev.farjad.driftlist.system.apps.ShortcutInfoItem
 import dev.farjad.driftlist.system.notifications.AppKey
+import dev.farjad.driftlist.system.notifications.NotifAction
 import dev.farjad.driftlist.system.notifications.NotifItem
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,11 +30,12 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.UUID
 
 data class AppSection(val letter: String, val apps: List<AppEntity>)
 
@@ -34,6 +47,14 @@ data class AppListModel(
     val headerIndex: Map<String, Int> = emptyMap(),
 )
 
+/** One row on the home screen. */
+sealed interface HomeEntry {
+    val itemId: String
+
+    data class App(override val itemId: String, val app: AppEntity) : HomeEntry
+    data class Folder(override val itemId: String, val folder: PopupFolderEntity, val apps: List<AppEntity>) : HomeEntry
+}
+
 data class SetupStatus(
     val isDefaultLauncher: Boolean = true,
     val hasNotificationAccess: Boolean = true,
@@ -41,46 +62,97 @@ data class SetupStatus(
 
 data class HomeUiState(
     val loaded: Boolean = false,
-    val favorites: List<AppEntity> = emptyList(),
-    val favoriteIds: Set<String> = emptySet(),
+    val onboardingDone: Boolean = true,
+    val favorites: List<HomeEntry> = emptyList(),
+    val favoriteAppIds: Set<String> = emptySet(),
+    val allApps: List<AppEntity> = emptyList(),
+    val hiddenApps: List<AppEntity> = emptyList(),
     val list: AppListModel = AppListModel(),
     val notifications: Map<AppKey, List<NotifItem>> = emptyMap(),
     val setup: SetupStatus = SetupStatus(),
+    val headerWidget: WidgetEntity? = null,
+    val settings: SettingsSnapshot = SettingsSnapshot(),
 )
 
 val AppEntity.key: AppKey get() = AppKey(packageName, userSerial)
 
+private data class Library(
+    val apps: List<AppEntity>,
+    val list: AppListModel,
+    val favorites: List<HomeEntry>,
+)
+
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as DriftlistApp).container
-    private val appDao = container.db.appDao()
-    private val homeDao = container.db.homeDao()
+    private val db = container.db
+    private val appDao = db.appDao()
+    private val homeDao = db.homeDao()
+    private val folderDao = db.folderDao()
 
     val icons = container.icons
+    val widgetHost = container.widgetHost
 
     private val setup = MutableStateFlow(SetupStatus())
+    private val _homePresses = MutableSharedFlow<Boolean>(extraBufferCapacity = 1)
 
-    private val _homePresses = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val homePresses: SharedFlow<Unit> = _homePresses
+    /** Emits on every HOME press; true when the user was already looking at home. */
+    val homePresses: SharedFlow<Boolean> = _homePresses
 
-    private val listModel = appDao.observeVisible()
-        .map(::buildList)
-        .flowOn(Dispatchers.Default)
+    private val library = combine(
+        appDao.observeAll(),
+        homeDao.observeItems(),
+        folderDao.observeFolders(),
+        folderDao.observeItems(),
+    ) { apps, items, folders, folderItems ->
+        val byId = apps.associateBy { it.id }
+        val foldersById = folders.associateBy { it.id }
+        val folderApps = folderItems.groupBy { it.folderId }
+            .mapValues { (_, list) -> list.sortedBy { it.position }.mapNotNull { fi -> fi.appId?.let(byId::get) } }
+        val favorites = items.mapNotNull { item ->
+            when (item.kind) {
+                HomeItemEntity.KIND_APP -> item.appId?.let(byId::get)?.let { HomeEntry.App(item.id, it) }
+                HomeItemEntity.KIND_FOLDER -> item.folderId?.let(foldersById::get)?.let { f ->
+                    HomeEntry.Folder(item.id, f, folderApps[f.id].orEmpty())
+                }
+                else -> null
+            }
+        }
+        Library(apps, buildList(apps.filterNot { it.hidden }), favorites)
+    }.flowOn(Dispatchers.Default)
 
     val state: StateFlow<HomeUiState> = combine(
-        homeDao.observeFavorites(),
-        listModel,
+        library,
         container.notifications.items,
         setup,
-    ) { favorites, list, notifications, setup ->
+        db.widgetDao().observeHeaderWidgets(),
+        container.settings.flow,
+    ) { lib, notifications, setup, header, settings ->
         HomeUiState(
             loaded = true,
-            favorites = favorites,
-            favoriteIds = favorites.mapTo(HashSet()) { it.id },
-            list = list,
+            onboardingDone = settings.onboardingDone,
+            favorites = lib.favorites,
+            favoriteAppIds = lib.favorites.filterIsInstance<HomeEntry.App>().mapTo(HashSet()) { it.app.id },
+            allApps = lib.apps,
+            hiddenApps = lib.apps.filter { it.hidden }.sortedBy { it.label.lowercase() },
+            list = lib.list,
             notifications = notifications,
             setup = setup,
+            headerWidget = header.firstOrNull(),
+            settings = settings,
         )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState())
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loaded = false))
+
+    private val now get() = System.currentTimeMillis()
+
+    init {
+        // People upgrading from 0.1.0 already have favorites: never show them first-run onboarding.
+        viewModelScope.launch {
+            val first = state.first { it.loaded }
+            if (!first.onboardingDone && first.favorites.isNotEmpty()) container.settings.setOnboardingDone(true)
+        }
+    }
+
+    // --- setup ------------------------------------------------------------------------------
 
     fun refreshSetup() {
         val app = getApplication<Application>()
@@ -91,38 +163,158 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun onHomePressed() {
-        _homePresses.tryEmit(Unit)
+    fun completeOnboarding(appIds: List<String>) {
+        viewModelScope.launch {
+            homeDao.replaceWithApps(appIds, now)
+            container.settings.setOnboardingDone(true)
+        }
     }
+
+    fun onHomePressed(alreadyHome: Boolean) {
+        _homePresses.tryEmit(alreadyHome)
+    }
+
+    // --- apps -------------------------------------------------------------------------------
 
     fun launch(app: AppEntity, bounds: Rect?) {
         if (container.catalog.launch(app, bounds)) {
-            viewModelScope.launch { appDao.markLaunched(app.id, System.currentTimeMillis()) }
+            viewModelScope.launch { appDao.markLaunched(app.id, now) }
         }
     }
 
     fun toggleFavorite(app: AppEntity) {
         viewModelScope.launch {
-            if (app.id in state.value.favoriteIds) {
-                homeDao.removeApp(app.id)
-            } else {
-                homeDao.addApp(app.id, System.currentTimeMillis())
-            }
+            if (app.id in state.value.favoriteAppIds) homeDao.removeApp(app.id) else homeDao.addApp(app.id, now)
         }
+    }
+
+    fun rename(app: AppEntity, label: String) {
+        val clean = label.trim().takeIf { it.isNotEmpty() && it != app.systemLabel }
+        viewModelScope.launch { appDao.setCustomLabel(app.id, clean, now) }
+    }
+
+    fun setHidden(app: AppEntity, hidden: Boolean) {
+        viewModelScope.launch { appDao.setHidden(app.id, hidden, now) }
     }
 
     fun openAppInfo(app: AppEntity, bounds: Rect?) = container.catalog.openAppInfo(app, bounds)
 
     fun uninstall(app: AppEntity) = container.catalog.uninstall(app)
 
+    fun shortcutsFor(app: AppEntity): List<ShortcutInfoItem> = container.catalog.shortcuts(app)
+
+    fun launchShortcut(item: ShortcutInfoItem, bounds: Rect?) = container.catalog.launchShortcut(item, bounds)
+
+    suspend fun shortcutIcon(item: ShortcutInfoItem, sizePx: Int): ImageBitmap? = withContext(Dispatchers.IO) {
+        container.catalog.shortcutIcon(item)?.let { runCatching { it.toBitmap(sizePx, sizePx).asImageBitmap() }.getOrNull() }
+    }
+
+    fun iconPackLabel(pkg: String): String? = container.iconPacks.installed().firstOrNull { it.packageName == pkg }?.label
+
+    /** Per-app icon from the current pack; null resets to the pack's (or system) default. */
+    fun setIcon(app: AppEntity, drawableName: String?) {
+        val pack = state.value.settings.iconPack ?: return
+        viewModelScope.launch {
+            if (drawableName == null) {
+                db.iconOverrideDao().delete(app.id, pack)
+            } else {
+                db.iconOverrideDao().set(app.id, pack, drawableName, now)
+            }
+        }
+    }
+
+    // --- favorites and folders --------------------------------------------------------------
+
+    fun addFavorites(appIds: List<String>) {
+        viewModelScope.launch { appIds.forEach { homeDao.addApp(it, now) } }
+    }
+
+    fun reorderFavorites(orderedItemIds: List<String>) {
+        viewModelScope.launch { homeDao.reorder(orderedItemIds, now) }
+    }
+
+    fun removeFavorite(entry: HomeEntry) {
+        viewModelScope.launch {
+            when (entry) {
+                is HomeEntry.App -> homeDao.remove(entry.itemId)
+                is HomeEntry.Folder -> folderDao.delete(entry.folder.id) // cascades to the home row
+            }
+        }
+    }
+
+    fun createFolder(title: String, appIds: List<String>) {
+        viewModelScope.launch {
+            val id = UUID.randomUUID().toString()
+            folderDao.insertFolder(PopupFolderEntity(id, title.trim().ifEmpty { "Folder" }, createdAt = now, updatedAt = now))
+            folderDao.setApps(id, appIds, now)
+            homeDao.addFolder(id, now)
+        }
+    }
+
+    fun updateFolder(folderId: String, title: String, appIds: List<String>) {
+        viewModelScope.launch {
+            folderDao.rename(folderId, title.trim().ifEmpty { "Folder" }, now)
+            folderDao.setApps(folderId, appIds, now)
+        }
+    }
+
+    // --- notifications ----------------------------------------------------------------------
+
     fun openNotification(item: NotifItem) = container.notifications.open(item)
 
     fun dismissNotification(item: NotifItem) = container.notifications.dismiss(item.key)
 
+    fun reply(item: NotifItem, text: String): Boolean = container.notifications.reply(item, text)
+
+    fun runAction(action: NotifAction) = container.notifications.runAction(action)
+
+    // --- header widget ----------------------------------------------------------------------
+
+    fun allocateWidgetId(): Int = widgetHost.allocate()
+
+    fun bindWidgetIntent(appWidgetId: Int, provider: android.appwidget.AppWidgetProviderInfo): Intent? =
+        widgetHost.bindOrIntent(appWidgetId, provider)
+
+    fun saveHeaderWidget(appWidgetId: Int) {
+        val info = widgetHost.info(appWidgetId) ?: return widgetHost.release(appWidgetId)
+        viewModelScope.launch {
+            val previous = state.value.headerWidget
+            db.widgetDao().setHeaderWidget(
+                appWidgetId,
+                info.provider.flattenToString(),
+                widgetHost.serialOf(info.profile),
+                now,
+            )
+            previous?.let { widgetHost.release(it.appWidgetId) }
+        }
+    }
+
+    fun removeHeaderWidget() {
+        val current = state.value.headerWidget ?: return
+        viewModelScope.launch {
+            db.widgetDao().clearHeader()
+            widgetHost.release(current.appWidgetId)
+        }
+    }
+
+    fun releaseWidgetId(appWidgetId: Int) = widgetHost.release(appWidgetId)
+
+    // --- search -----------------------------------------------------------------------------
+
+    fun search(query: String): List<AppEntity> {
+        val s = state.value
+        val pool = if (s.settings.searchIncludesHidden) s.allApps else s.allApps.filterNot { it.hidden }
+        return AppSearch.rank(query, pool)
+    }
+
     private fun buildList(apps: List<AppEntity>): AppListModel {
         val indexer = AlphabetIndexer.forCurrentLocales()
         val collator = Collator.getInstance(Locale.getDefault())
-        val byBucket = apps
+        // A renamed app sorts under its new name.
+        val effective = apps.map { a ->
+            a.customLabel?.let { a.copy(sortKey = indexer.sortKey(it), bucket = indexer.bucketOf(it)) } ?: a
+        }
+        val byBucket = effective
             .sortedWith { a, b -> collator.compare(a.sortKey, b.sortKey) }
             .groupBy { if (it.bucket in indexer.letters) it.bucket else AlphabetIndexer.OTHER }
 

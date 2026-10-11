@@ -3,6 +3,7 @@ package dev.farjad.driftlist.ui.components
 import android.graphics.Rect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +50,7 @@ import dev.farjad.driftlist.ui.theme.RadiusTokens
 import dev.farjad.driftlist.ui.theme.SizeTokens
 import dev.farjad.driftlist.ui.theme.SpaceTokens
 import dev.farjad.driftlist.ui.theme.TypeTokens
-import dev.farjad.driftlist.ui.theme.style
+import dev.farjad.driftlist.ui.theme.onWallpaper
 import kotlin.math.roundToInt
 
 enum class AppRowVariant { Favorite, List }
@@ -56,7 +58,8 @@ enum class AppRowVariant { Favorite, List }
 @Composable
 fun AppIcon(appId: String, icons: IconCache, size: Dp, modifier: Modifier = Modifier) {
     val px = with(LocalDensity.current) { size.roundToPx() }
-    val bitmap: ImageBitmap? by produceState(icons.peek(appId, px), appId, px) {
+    val version by icons.version.collectAsState()
+    val bitmap: ImageBitmap? by produceState(icons.peek(appId, px), appId, px, version) {
         value = icons.load(appId, px)
     }
     val current = bitmap
@@ -67,11 +70,116 @@ fun AppIcon(appId: String, icons: IconCache, size: Dp, modifier: Modifier = Modi
     }
 }
 
+/** Four tiny icons in a rounded square: the "icon" of a folder. */
+@Composable
+fun FolderIcon(apps: List<AppEntity>, icons: IconCache, size: Dp) {
+    val cell = (size - 6.dp) / 2
+    Box(
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(RadiusTokens.icon))
+            .background(LocalHomeColors.current.text.copy(alpha = 0.16f))
+            .padding(2.dp),
+    ) {
+        apps.take(4).forEachIndexed { i, app ->
+            AppIcon(
+                app.id,
+                icons,
+                cell,
+                Modifier.offset(x = (cell + 2.dp) * (i % 2), y = (cell + 2.dp) * (i / 2)),
+            )
+        }
+    }
+}
+
 /**
- * One app on the home screen or in the list. Tap launches, long-press opens options,
- * swipe right opens the app pop-up. Both gestures are also TalkBack custom actions.
+ * Shared row shell: icon, label, optional preview line. Tap, long-press and an optional
+ * swipe-right, each also exposed to TalkBack.
  */
 @OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun LauncherRow(
+    label: String,
+    variant: AppRowVariant,
+    icon: @Composable (Dp) -> Unit,
+    preview: String?,
+    a11yLabel: String,
+    onClick: (Rect?) -> Unit,
+    onLongClick: () -> Unit,
+    onSwipeRight: (() -> Unit)?,
+    swipeActionLabel: String = "Notifications and shortcuts",
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalHomeColors.current
+    val haptics = LocalHapticFeedback.current
+    val threshold = with(LocalDensity.current) { 56.dp.toPx() }
+    var bounds by remember { mutableStateOf<Rect?>(null) }
+    var dragX by remember { mutableFloatStateOf(0f) }
+
+    val favorite = variant == AppRowVariant.Favorite
+    val rowHeight = if (favorite) SizeTokens.favoriteRow else SizeTokens.listRow
+    val iconSize = if (favorite) SizeTokens.iconFavorite else SizeTokens.iconList
+    val labelStyle = (if (favorite) TypeTokens.favorite else TypeTokens.list).onWallpaper(colors)
+
+    var m = modifier
+        .fillMaxWidth()
+        .heightIn(min = rowHeight)
+        .onGloballyPositioned { coords ->
+            val r = coords.boundsInWindow()
+            bounds = Rect(r.left.roundToInt(), r.top.roundToInt(), r.right.roundToInt(), r.bottom.roundToInt())
+        }
+        .offset { IntOffset((dragX / 3).roundToInt(), 0) }
+        .clip(RoundedCornerShape(RadiusTokens.md))
+    if (onSwipeRight != null) {
+        m = m.pointerInput(label) {
+            detectHorizontalDragGestures(
+                onDragEnd = {
+                    if (dragX > threshold) onSwipeRight()
+                    dragX = 0f
+                },
+                onDragCancel = { dragX = 0f },
+            ) { change, amount ->
+                dragX = (dragX + amount).coerceAtLeast(0f)
+                change.consume()
+            }
+        }
+    }
+    Row(
+        modifier = m
+            .combinedClickable(
+                onClick = { onClick(bounds) },
+                onLongClick = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    onLongClick()
+                },
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = a11yLabel
+                customActions = listOfNotNull(
+                    onSwipeRight?.let { swipe -> CustomAccessibilityAction(swipeActionLabel) { swipe(); true } },
+                    CustomAccessibilityAction("Options") { onLongClick(); true },
+                )
+            }
+            .padding(vertical = SpaceTokens.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+    ) {
+        icon(iconSize)
+        Column {
+            Text(label, style = labelStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!preview.isNullOrBlank()) {
+                Text(
+                    preview,
+                    style = TypeTokens.preview.onWallpaper(colors, colors.preview),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+/** One app on the home screen or in the list. Swipe right opens the app pop-up. */
 @Composable
 fun AppRow(
     app: AppEntity,
@@ -84,71 +192,39 @@ fun AppRow(
     onSwipeRight: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalHomeColors.current
-    val haptics = LocalHapticFeedback.current
-    val density = LocalDensity.current
-    val threshold = with(density) { 56.dp.toPx() }
-    var bounds by remember { mutableStateOf<Rect?>(null) }
-    var dragX by remember { mutableFloatStateOf(0f) }
+    LauncherRow(
+        label = app.label,
+        variant = variant,
+        icon = { size -> AppIcon(app.id, icons, size) },
+        preview = preview,
+        a11yLabel = if (notificationCount > 0) "${app.label}, $notificationCount notifications" else app.label,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onSwipeRight = onSwipeRight,
+        modifier = modifier,
+    )
+}
 
-    val favorite = variant == AppRowVariant.Favorite
-    val rowHeight = if (favorite) SizeTokens.favoriteRow else SizeTokens.listRow
-    val iconSize = if (favorite) SizeTokens.iconFavorite else SizeTokens.iconList
-    val labelStyle = (if (favorite) TypeTokens.favorite else TypeTokens.list).style(colors.text)
-
-    val a11yLabel = if (notificationCount > 0) "${app.label}, $notificationCount notifications" else app.label
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = rowHeight)
-            .onGloballyPositioned { coords ->
-                val r = coords.boundsInWindow()
-                bounds = Rect(r.left.roundToInt(), r.top.roundToInt(), r.right.roundToInt(), r.bottom.roundToInt())
-            }
-            .offset { IntOffset((dragX / 3).roundToInt(), 0) }
-            .clip(RoundedCornerShape(RadiusTokens.md))
-            .pointerInput(app.id) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (dragX > threshold) onSwipeRight()
-                        dragX = 0f
-                    },
-                    onDragCancel = { dragX = 0f },
-                ) { change, amount ->
-                    dragX = (dragX + amount).coerceAtLeast(0f)
-                    change.consume()
-                }
-            }
-            .combinedClickable(
-                onClick = { onClick(bounds) },
-                onLongClick = {
-                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    onLongClick()
-                },
-            )
-            .semantics(mergeDescendants = true) {
-                contentDescription = a11yLabel
-                customActions = listOf(
-                    CustomAccessibilityAction("Notifications and shortcuts") { onSwipeRight(); true },
-                    CustomAccessibilityAction("Options") { onLongClick(); true },
-                )
-            }
-            .padding(vertical = SpaceTokens.s2),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
-    ) {
-        AppIcon(app.id, icons, iconSize)
-        Column {
-            Text(app.label, style = labelStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (!preview.isNullOrBlank()) {
-                Text(
-                    preview,
-                    style = TypeTokens.preview.style(colors.preview),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
+/** A pop-up folder on the home screen. Tap opens it. */
+@Composable
+fun FolderRow(
+    title: String,
+    apps: List<AppEntity>,
+    icons: IconCache,
+    preview: String?,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    LauncherRow(
+        label = title,
+        variant = AppRowVariant.Favorite,
+        icon = { size -> FolderIcon(apps, icons, size) },
+        preview = preview,
+        a11yLabel = "$title, folder with ${apps.size} apps",
+        onClick = { onClick() },
+        onLongClick = onLongClick,
+        onSwipeRight = null,
+        modifier = modifier,
+    )
 }

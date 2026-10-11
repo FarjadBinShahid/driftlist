@@ -45,6 +45,7 @@ import dev.farjad.driftlist.ui.theme.MotionTokens
 import dev.farjad.driftlist.ui.theme.SizeTokens
 import dev.farjad.driftlist.ui.theme.TypeTokens
 import dev.farjad.driftlist.ui.theme.WaveTokens
+import dev.farjad.driftlist.ui.theme.onWallpaper
 import dev.farjad.driftlist.ui.theme.style
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -145,7 +146,7 @@ fun WaveAlphabet(
                 ) {
                     Text(
                         letter,
-                        style = TypeTokens.alphabet.style(
+                        style = TypeTokens.alphabet.onWallpaper(colors, 
                             if (isEnabled) colors.alphabet else colors.alphabet.copy(alpha = 0.4f),
                         ),
                         fontWeight = if (letter == current) FontWeight.Black else null,

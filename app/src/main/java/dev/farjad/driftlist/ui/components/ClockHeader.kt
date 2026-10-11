@@ -1,7 +1,8 @@
 package dev.farjad.driftlist.ui.components
 
 import android.text.format.DateFormat
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,16 +20,18 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import dev.farjad.driftlist.ui.theme.LocalHomeColors
 import dev.farjad.driftlist.ui.theme.TypeTokens
-import dev.farjad.driftlist.ui.theme.style
+import dev.farjad.driftlist.ui.theme.onWallpaper
 import kotlinx.coroutines.delay
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ClockHeader(
     onClockClick: () -> Unit,
     onDateClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -53,16 +56,16 @@ fun ClockHeader(
     Column(modifier) {
         Text(
             time,
-            style = TypeTokens.clock.style(colors.text),
+            style = TypeTokens.clock.onWallpaper(colors),
             modifier = Modifier
-                .clickable(onClick = onClockClick)
-                .semantics { contentDescription = "$time, open clock" },
+                .combinedClickable(onClick = onClockClick, onLongClick = onLongClick)
+                .semantics { contentDescription = "$time, open clock. Long-press for header options" },
         )
         Text(
             date,
-            style = TypeTokens.date.style(colors.text),
+            style = TypeTokens.date.onWallpaper(colors),
             modifier = Modifier
-                .clickable(onClick = onDateClick)
+                .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
                 .semantics { contentDescription = "$date, open calendar" },
         )
     }

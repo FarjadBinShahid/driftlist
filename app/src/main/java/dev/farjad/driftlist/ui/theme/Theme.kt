@@ -11,7 +11,9 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
 
@@ -78,7 +80,13 @@ data class HomeColors(
     val alphabet: Color,
     val scrim: Color,
     val darkText: Boolean,
+    /** Soft shadow under light text so it stays legible over bright patches of a dark wallpaper. */
+    val shadow: Shadow?,
 )
+
+/** A [TypeToken] styled for text drawn on the wallpaper. */
+fun TypeToken.onWallpaper(colors: HomeColors, color: Color = colors.text): TextStyle =
+    style(color).copy(shadow = colors.shadow)
 
 val HomeColorsForDarkWallpaper = HomeColors(
     text = HomeTokens.textOnDark,
@@ -87,6 +95,7 @@ val HomeColorsForDarkWallpaper = HomeColors(
     alphabet = HomeTokens.alphabetIdleOnDark,
     scrim = Color.Black,
     darkText = false,
+    shadow = Shadow(color = Color.Black.copy(alpha = 0.45f), offset = Offset(0f, 2f), blurRadius = 8f),
 )
 
 val HomeColorsForLightWallpaper = HomeColors(
@@ -96,6 +105,7 @@ val HomeColorsForLightWallpaper = HomeColors(
     alphabet = HomeTokens.alphabetIdleOnLight,
     scrim = Color.White,
     darkText = true,
+    shadow = null,
 )
 
 val LocalHomeColors = staticCompositionLocalOf { HomeColorsForDarkWallpaper }

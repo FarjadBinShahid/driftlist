@@ -3,6 +3,9 @@ package dev.farjad.driftlist.system.notifications
 import android.app.ActivityOptions
 import android.app.Notification
 import android.app.PendingIntent
+import android.app.RemoteInput
+import android.content.Intent
+import android.os.Bundle
 import android.content.ComponentName
 import android.content.Context
 import android.os.Build
@@ -19,6 +22,15 @@ import kotlinx.coroutines.flow.update
 /** Which app a notification belongs to: package plus profile. */
 data class AppKey(val packageName: String, val userSerial: Long)
 
+/** A notification button. [remoteInputs] is set for reply-style actions. */
+data class NotifAction(
+    val title: String,
+    val intent: PendingIntent,
+    val remoteInputs: Array<RemoteInput>?,
+) {
+    val isReply: Boolean get() = remoteInputs?.any { it.allowFreeFormInput } == true
+}
+
 data class NotifItem(
     val key: String,
     val app: AppKey,
@@ -27,7 +39,11 @@ data class NotifItem(
     val postedAt: Long,
     val clearable: Boolean,
     val contentIntent: PendingIntent?,
+    val actions: List<NotifAction> = emptyList(),
 ) {
+    val replyAction: NotifAction? get() = actions.firstOrNull { it.isReply }
+    val buttonActions: List<NotifAction> get() = actions.filterNot { it.isReply }.take(2)
+
     /** One line for the inline preview under an app's name. */
     val preview: String
         get() = listOfNotNull(title?.takeIf { it.isNotBlank() }, text?.takeIf { it.isNotBlank() })
@@ -87,6 +103,30 @@ class NotificationHub(private val context: Context) {
         else -> null
     }
 
+    /** Sends [text] through the notification's reply action, the same way the system shade does. */
+    fun reply(item: NotifItem, text: String): Boolean {
+        val action = item.replyAction ?: return false
+        val inputs = action.remoteInputs ?: return false
+        val input = inputs.first { it.allowFreeFormInput }
+        val results = Bundle().apply { putCharSequence(input.resultKey, text) }
+        val intent = Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+        RemoteInput.addResultsToIntent(arrayOf(input), intent, results)
+        return try {
+            action.intent.send(context, 0, intent)
+            true
+        } catch (e: PendingIntent.CanceledException) {
+            Log.w(TAG, "reply intent cancelled", e)
+            false
+        }
+    }
+
+    fun runAction(action: NotifAction): Boolean = try {
+        action.intent.send(context, 0, null, null, null, null, launchOptions())
+        true
+    } catch (e: PendingIntent.CanceledException) {
+        false
+    }
+
     internal fun attach(listener: DriftNotificationListener) {
         service = listener
         _connected.value = true
@@ -140,6 +180,10 @@ class NotificationHub(private val context: Context) {
             postedAt = sbn.postTime,
             clearable = sbn.isClearable,
             contentIntent = n.contentIntent,
+            actions = n.actions.orEmpty().mapNotNull { a ->
+                val intent = a.actionIntent ?: return@mapNotNull null
+                NotifAction(a.title?.toString().orEmpty(), intent, a.remoteInputs)
+            },
         )
     }
 

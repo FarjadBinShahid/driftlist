@@ -1,10 +1,14 @@
 package dev.farjad.driftlist.ui.home
 
+import android.app.SearchManager
+import android.app.role.RoleManager
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,11 +30,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -42,49 +47,81 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import android.app.role.RoleManager
 import dev.farjad.driftlist.data.db.AppEntity
 import dev.farjad.driftlist.system.SystemActions
-import dev.farjad.driftlist.system.apps.IconCache
 import dev.farjad.driftlist.system.notifications.NotifItem
+import dev.farjad.driftlist.ui.components.AddFavoritesSheet
 import dev.farjad.driftlist.ui.components.AppOptionsSheet
 import dev.farjad.driftlist.ui.components.AppPopupSheet
 import dev.farjad.driftlist.ui.components.AppRow
 import dev.farjad.driftlist.ui.components.AppRowVariant
 import dev.farjad.driftlist.ui.components.ClockHeader
+import dev.farjad.driftlist.ui.components.EditFavoritesSheet
+import dev.farjad.driftlist.ui.components.FolderEditorSheet
+import dev.farjad.driftlist.ui.components.FolderOptionsSheet
+import dev.farjad.driftlist.ui.components.FolderRow
+import dev.farjad.driftlist.ui.components.FolderSheet
+import dev.farjad.driftlist.ui.components.HeaderOptionsSheet
+import dev.farjad.driftlist.ui.components.HostedWidget
+import dev.farjad.driftlist.ui.components.IconPickerSheet
+import dev.farjad.driftlist.ui.components.Onboarding
+import dev.farjad.driftlist.ui.components.SearchOverlay
 import dev.farjad.driftlist.ui.components.SetupCard
 import dev.farjad.driftlist.ui.components.WaveAlphabet
+import dev.farjad.driftlist.ui.components.WidgetPickerSheet
 import dev.farjad.driftlist.ui.theme.LocalHomeColors
 import dev.farjad.driftlist.ui.theme.ScrimTokens
 import dev.farjad.driftlist.ui.theme.SizeTokens
 import dev.farjad.driftlist.ui.theme.SpaceTokens
 import dev.farjad.driftlist.ui.theme.TypeTokens
-import dev.farjad.driftlist.ui.theme.style
+import dev.farjad.driftlist.ui.theme.onWallpaper
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 private enum class Pane { Favorites, AllApps }
 
-/** S05 favorites + S06 app list, sharing one wave alphabet. */
+/** Everything that can sit on top of home. One at a time. */
+private sealed interface Overlay {
+    data class Popup(val app: AppEntity) : Overlay
+    data class Options(val app: AppEntity) : Overlay
+    data class IconPicker(val app: AppEntity) : Overlay
+    data class Folder(val entry: HomeEntry.Folder) : Overlay
+    data class FolderOptions(val entry: HomeEntry.Folder) : Overlay
+    data class FolderEditor(val folderId: String?, val title: String, val appIds: List<String>) : Overlay
+    data object EditFavorites : Overlay
+    data object AddFavorites : Overlay
+    data object HeaderOptions : Overlay
+    data object WidgetPicker : Overlay
+    data object Search : Overlay
+}
+
+/** S05 favorites + S06 app list sharing one wave alphabet, plus every sheet opened from them. */
 @Composable
-fun HomeScreen(vm: HomeViewModel) {
+fun HomeScreen(
+    vm: HomeViewModel,
+    onOpenSettings: () -> Unit,
+    onConfigureWidget: (appWidgetId: Int, done: (Boolean) -> Unit) -> Unit,
+) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val colors = LocalHomeColors.current
 
     var pane by rememberSaveable { mutableStateOf(Pane.Favorites) }
-    var popupFor by remember { mutableStateOf<AppEntity?>(null) }
-    var optionsFor by remember { mutableStateOf<AppEntity?>(null) }
+    var overlay by remember { mutableStateOf<Overlay?>(null) }
     val listState = rememberLazyListState()
+    val latestState by rememberUpdatedState(state)
 
-    BackHandler(enabled = pane == Pane.AllApps) { pane = Pane.Favorites }
+    BackHandler(enabled = pane == Pane.AllApps && overlay == null) { pane = Pane.Favorites }
     LaunchedEffect(Unit) {
-        vm.homePresses.collect {
-            popupFor = null
-            optionsFor = null
+        vm.homePresses.collect { alreadyHome ->
+            val s = latestState
+            overlay = if (alreadyHome && overlay == null && pane == Pane.Favorites && s.settings.swipeUpSearch) Overlay.Search else null
             pane = Pane.Favorites
         }
     }
 
+    // --- setup: default launcher role -----------------------------------------------------------
     val roleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         vm.refreshSetup()
     }
@@ -97,8 +134,35 @@ fun HomeScreen(vm: HomeViewModel) {
         }
     }
 
+    // --- widget add flow: allocate -> bind (maybe ask) -> configure (maybe) -> save ---------------
+    var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
+    val finishWidget: (Int) -> Unit = { id ->
+        if (vm.widgetHost.needsConfigure(id)) {
+            onConfigureWidget(id) { ok -> if (ok) vm.saveHeaderWidget(id) else vm.releaseWidgetId(id) }
+        } else {
+            vm.saveHeaderWidget(id)
+        }
+    }
+    val bindLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val id = pendingWidgetId ?: return@rememberLauncherForActivityResult
+        pendingWidgetId = null
+        if (result.resultCode == android.app.Activity.RESULT_OK) finishWidget(id) else vm.releaseWidgetId(id)
+    }
+
+    if (state.loaded && !state.onboardingDone && state.favorites.isEmpty()) {
+        Onboarding(
+            apps = state.allApps.filterNot { it.hidden },
+            icons = vm.icons,
+            onDone = { ids ->
+                vm.completeOnboarding(ids)
+                if (!state.setup.isDefaultLauncher) askToBeDefault()
+            },
+        )
+        return
+    }
+
     val notificationsFor = { app: AppEntity -> state.notifications[app.key].orEmpty() }
-    val rowFor: @Composable (AppEntity, AppRowVariant) -> Unit = { app, variant ->
+    val appRow: @Composable (AppEntity, AppRowVariant) -> Unit = { app, variant ->
         val notes = notificationsFor(app)
         AppRow(
             app = app,
@@ -107,21 +171,28 @@ fun HomeScreen(vm: HomeViewModel) {
             preview = notes.firstOrNull()?.preview,
             notificationCount = notes.size,
             onClick = { bounds -> vm.launch(app, bounds) },
-            onLongClick = { optionsFor = app },
-            onSwipeRight = { popupFor = app },
+            onLongClick = { overlay = Overlay.Options(app) },
+            onSwipeRight = { overlay = Overlay.Popup(app) },
         )
     }
 
     Box(Modifier.fillMaxSize()) {
-        // Scrim over the wallpaper: light at the top behind the clock, stronger at the bottom behind the list.
+        // Scrim over the wallpaper. Home: darker behind the clock and the favorites, clear in between.
+        // App list: even all the way down, since text fills the screen.
+        val scrim = colors.scrim
+        val max = ScrimTokens.homeMaxAlpha
         Box(
             Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0f to colors.scrim.copy(alpha = ScrimTokens.homeMaxAlpha * 0.64f),
-                    0.25f to colors.scrim.copy(alpha = 0f),
-                    0.4f to colors.scrim.copy(alpha = 0f),
-                    1f to colors.scrim.copy(alpha = ScrimTokens.homeMaxAlpha),
-                ),
+                if (pane == Pane.AllApps) {
+                    Brush.verticalGradient(0f to scrim.copy(alpha = max * 0.8f), 1f to scrim.copy(alpha = max))
+                } else {
+                    Brush.verticalGradient(
+                        0f to scrim.copy(alpha = max * 0.8f),
+                        0.32f to scrim.copy(alpha = max * 0.45f),
+                        0.5f to scrim.copy(alpha = 0f),
+                        1f to scrim.copy(alpha = max),
+                    )
+                },
             ),
         )
 
@@ -130,13 +201,18 @@ fun HomeScreen(vm: HomeViewModel) {
                 when (pane) {
                     Pane.Favorites -> FavoritesPane(
                         state = state,
-                        row = rowFor,
+                        vm = vm,
+                        appRow = appRow,
+                        onFolderClick = { overlay = Overlay.Folder(it) },
+                        onFolderLongClick = { overlay = Overlay.FolderOptions(it) },
+                        onHeaderLongClick = { overlay = Overlay.HeaderOptions },
+                        onSearch = { if (state.settings.swipeUpSearch) overlay = Overlay.Search },
                         onAskDefault = askToBeDefault,
                         onAskNotifications = {
                             SystemActions.start(context, SystemActions.notificationAccessIntent(context))
                         },
                     )
-                    Pane.AllApps -> AppListPane(state.list, listState, rowFor)
+                    Pane.AllApps -> AppListPane(state.list, listState, appRow, onOpenSettings)
                 }
             }
             WaveAlphabet(
@@ -150,26 +226,133 @@ fun HomeScreen(vm: HomeViewModel) {
         }
     }
 
-    popupFor?.let { app ->
-        AppPopupSheet(
-            app = app,
+    // --- overlays --------------------------------------------------------------------------------
+    val close = { overlay = null }
+    when (val o = overlay) {
+        null -> Unit
+        is Overlay.Popup -> AppPopupSheet(
+            app = o.app,
             icons = vm.icons,
-            notifications = notificationsFor(app),
-            onOpenApp = { popupFor = null; vm.launch(app, null) },
-            onOpenNotification = { item: NotifItem -> popupFor = null; vm.openNotification(item) },
+            notifications = notificationsFor(o.app),
+            shortcuts = remember(o.app.id) { vm.shortcutsFor(o.app) },
+            shortcutIcon = { item, px -> vm.shortcutIcon(item, px) },
+            onOpenApp = { close(); vm.launch(o.app, null) },
+            onOpenNotification = { item: NotifItem -> close(); vm.openNotification(item) },
             onDismissNotification = vm::dismissNotification,
-            onClose = { popupFor = null },
+            onReply = vm::reply,
+            onRunAction = { action -> vm.runAction(action) },
+            onShortcut = { sc -> close(); vm.launchShortcut(sc, null) },
+            onClose = close,
         )
-    }
-    optionsFor?.let { app ->
-        AppOptionsSheet(
-            app = app,
+        is Overlay.Options -> {
+            val app = state.allApps.firstOrNull { it.id == o.app.id } ?: o.app
+            AppOptionsSheet(
+                app = app,
+                icons = vm.icons,
+                isFavorite = app.id in state.favoriteAppIds,
+                onToggleFavorite = { close(); vm.toggleFavorite(app) },
+                onRename = { name -> close(); vm.rename(app, name) },
+                onChangeIcon = { overlay = Overlay.IconPicker(app) },
+                onToggleHidden = { close(); vm.setHidden(app, !app.hidden) },
+                onAppInfo = { close(); vm.openAppInfo(app, null) },
+                onUninstall = { close(); vm.uninstall(app) },
+                onClose = close,
+            )
+        }
+        is Overlay.IconPicker -> {
+            val pack = state.settings.iconPack
+            IconPickerSheet(
+                app = o.app,
+                icons = vm.icons,
+                pack = pack,
+                packLabel = remember(pack) { pack?.let(vm::iconPackLabel) },
+                onPick = { name -> close(); vm.setIcon(o.app, name) },
+                onOpenIconSettings = { close(); onOpenSettings() },
+                onClose = close,
+            )
+        }
+        is Overlay.Folder -> {
+            val entry = state.favorites.filterIsInstance<HomeEntry.Folder>().firstOrNull { it.folder.id == o.entry.folder.id } ?: o.entry
+            FolderSheet(
+                title = entry.folder.title,
+                apps = entry.apps,
+                icons = vm.icons,
+                onLaunch = { app -> close(); vm.launch(app, null) },
+                onEdit = { overlay = Overlay.FolderEditor(entry.folder.id, entry.folder.title, entry.apps.map { it.id }) },
+                onClose = close,
+            )
+        }
+        is Overlay.FolderOptions -> FolderOptionsSheet(
+            title = o.entry.folder.title,
+            onEdit = { overlay = Overlay.FolderEditor(o.entry.folder.id, o.entry.folder.title, o.entry.apps.map { it.id }) },
+            onRemove = { close(); vm.removeFavorite(o.entry) },
+            onClose = close,
+        )
+        is Overlay.FolderEditor -> FolderEditorSheet(
+            initialTitle = o.title,
+            initialAppIds = o.appIds,
+            apps = state.allApps.filterNot { it.hidden },
             icons = vm.icons,
-            isFavorite = app.id in state.favoriteIds,
-            onToggleFavorite = { optionsFor = null; vm.toggleFavorite(app) },
-            onAppInfo = { optionsFor = null; vm.openAppInfo(app, null) },
-            onUninstall = { optionsFor = null; vm.uninstall(app) },
-            onClose = { optionsFor = null },
+            onSave = { title, ids ->
+                close()
+                if (o.folderId == null) vm.createFolder(title, ids) else vm.updateFolder(o.folderId, title, ids)
+            },
+            onClose = close,
+        )
+        Overlay.EditFavorites -> EditFavoritesSheet(
+            entries = state.favorites,
+            icons = vm.icons,
+            onReorder = vm::reorderFavorites,
+            onRemove = vm::removeFavorite,
+            onAddApps = { overlay = Overlay.AddFavorites },
+            onNewFolder = { overlay = Overlay.FolderEditor(null, "", emptyList()) },
+            onClose = close,
+        )
+        Overlay.AddFavorites -> AddFavoritesSheet(
+            apps = state.allApps.filter { !it.hidden && it.id !in state.favoriteAppIds },
+            icons = vm.icons,
+            onAdd = { ids -> vm.addFavorites(ids); overlay = Overlay.EditFavorites },
+            onClose = { overlay = Overlay.EditFavorites },
+        )
+        Overlay.HeaderOptions -> HeaderOptionsSheet(
+            hasWidget = state.headerWidget != null,
+            onAddWidget = { overlay = Overlay.WidgetPicker },
+            onRemoveWidget = { close(); vm.removeHeaderWidget() },
+            onEditFavorites = { overlay = Overlay.EditFavorites },
+            onOpenSettings = { close(); onOpenSettings() },
+            onClose = close,
+        )
+        Overlay.WidgetPicker -> {
+            val providers = remember { vm.widgetHost.providers() }
+            WidgetPickerSheet(
+                providers = providers,
+                onPick = { info ->
+                    close()
+                    val id = vm.allocateWidgetId()
+                    val bind = vm.bindWidgetIntent(id, info)
+                    if (bind == null) {
+                        finishWidget(id)
+                    } else {
+                        pendingWidgetId = id
+                        bindLauncher.launch(bind)
+                    }
+                },
+                onClose = close,
+            )
+        }
+        Overlay.Search -> SearchOverlay(
+            search = vm::search,
+            suggestions = remember(state.allApps) {
+                state.allApps.filter { !it.hidden && it.launchCount > 0 }.sortedByDescending { it.launchCount }.take(6)
+            },
+            icons = vm.icons,
+            onLaunch = { app -> close(); vm.launch(app, null) },
+            onLongPress = { app -> overlay = Overlay.Options(app) },
+            onWebSearch = { q ->
+                close()
+                SystemActions.start(context, Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, q))
+            },
+            onClose = close,
         )
     }
 }
@@ -177,19 +360,26 @@ fun HomeScreen(vm: HomeViewModel) {
 @Composable
 private fun FavoritesPane(
     state: HomeUiState,
-    row: @Composable (AppEntity, AppRowVariant) -> Unit,
+    vm: HomeViewModel,
+    appRow: @Composable (AppEntity, AppRowVariant) -> Unit,
+    onFolderClick: (HomeEntry.Folder) -> Unit,
+    onFolderLongClick: (HomeEntry.Folder) -> Unit,
+    onHeaderLongClick: () -> Unit,
+    onSearch: () -> Unit,
     onAskDefault: () -> Unit,
     onAskNotifications: () -> Unit,
 ) {
     val context = LocalContext.current
     val colors = LocalHomeColors.current
     val swipeDownPx = with(LocalDensity.current) { 96.dp.toPx() }
+    val swipeUpPx = with(LocalDensity.current) { 140.dp.toPx() }
+    val search by rememberUpdatedState(onSearch)
 
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            // Swipe down anywhere opens the notification shade. Observed on the Initial pass and never
-            // consumed, so scrolling and taps underneath keep working.
+            // Swipe down anywhere: notification shade. Long swipe up: search. Observed on the Initial
+            // pass and never consumed, so scrolling and taps underneath keep working.
             .pointerInput(Unit) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
@@ -198,11 +388,15 @@ private fun FavoritesPane(
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) break
+                        if (fired) continue
                         val dy = change.position.y - down.position.y
                         val dx = change.position.x - down.position.x
-                        if (!fired && dy > swipeDownPx && abs(dx) < dy / 2) {
+                        if (dy > swipeDownPx && abs(dx) < dy / 2) {
                             fired = true
                             SystemActions.expandNotificationShade(context)
+                        } else if (-dy > swipeUpPx && abs(dx) < -dy / 2) {
+                            fired = true
+                            search()
                         }
                     }
                 }
@@ -214,7 +408,12 @@ private fun FavoritesPane(
             ClockHeader(
                 onClockClick = { SystemActions.openClock(context) },
                 onDateClick = { SystemActions.openCalendar(context) },
+                onLongClick = onHeaderLongClick,
             )
+            state.headerWidget?.let { widget ->
+                Spacer(Modifier.height(SpaceTokens.s4))
+                HostedWidget(widget.appWidgetId, vm.widgetHost, Modifier.padding(end = SpaceTokens.s3))
+            }
             if (state.loaded && !state.setup.isDefaultLauncher) {
                 Spacer(Modifier.height(SpaceTokens.s5))
                 SetupCard(
@@ -229,7 +428,7 @@ private fun FavoritesPane(
                 Spacer(Modifier.height(SpaceTokens.s4))
                 SetupCard(
                     title = "See notifications next to your apps",
-                    body = "Allow notification access to read new messages right here. Nothing leaves your phone.",
+                    body = "Allow notification access to read and reply right here. Nothing leaves your phone.",
                     action = "Allow",
                     onAction = onAskNotifications,
                     modifier = Modifier.padding(end = SpaceTokens.s3),
@@ -244,12 +443,27 @@ private fun FavoritesPane(
                     item {
                         Text(
                             "Slide along the letters on the right to find an app, then long-press it to pin it here.",
-                            style = TypeTokens.body.style(colors.textMuted),
+                            style = TypeTokens.body.onWallpaper(colors, colors.textMuted),
                             modifier = Modifier.padding(end = SpaceTokens.s7, bottom = SpaceTokens.s5),
                         )
                     }
                 }
-                items(state.favorites, key = { it.id }) { app -> row(app, AppRowVariant.Favorite) }
+                items(state.favorites, key = { it.itemId }) { entry ->
+                    when (entry) {
+                        is HomeEntry.App -> appRow(entry.app, AppRowVariant.Favorite)
+                        is HomeEntry.Folder -> {
+                            val latest = entry.apps.flatMap { state.notifications[it.key].orEmpty() }.maxByOrNull { it.postedAt }
+                            FolderRow(
+                                title = entry.folder.title,
+                                apps = entry.apps,
+                                icons = vm.icons,
+                                preview = latest?.preview,
+                                onClick = { onFolderClick(entry) },
+                                onLongClick = { onFolderLongClick(entry) },
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -259,7 +473,8 @@ private fun FavoritesPane(
 private fun AppListPane(
     model: AppListModel,
     listState: LazyListState,
-    row: @Composable (AppEntity, AppRowVariant) -> Unit,
+    appRow: @Composable (AppEntity, AppRowVariant) -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     val colors = LocalHomeColors.current
     LazyColumn(
@@ -271,13 +486,25 @@ private fun AppListPane(
             item(key = "header:${section.letter}") {
                 Text(
                     section.letter,
-                    style = TypeTokens.letterHeader.style(colors.textMuted),
+                    style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
                     modifier = Modifier
                         .padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2)
                         .semantics { heading() },
                 )
             }
-            items(section.apps, key = { it.id }) { app -> row(app, AppRowVariant.List) }
+            items(section.apps, key = { it.id }) { app -> appRow(app, AppRowVariant.List) }
+        }
+        item(key = "footer:settings") {
+            Text(
+                "Driftlist settings",
+                style = TypeTokens.list.onWallpaper(colors, colors.textMuted),
+                modifier = Modifier
+                    .padding(top = SpaceTokens.s7)
+                    .fillMaxWidth()
+                    .heightIn(min = SizeTokens.listRow)
+                    .clickable(onClick = onOpenSettings)
+                    .padding(vertical = SpaceTokens.s4),
+            )
         }
     }
 }

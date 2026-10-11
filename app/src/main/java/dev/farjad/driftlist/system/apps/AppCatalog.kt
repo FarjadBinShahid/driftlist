@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
+import android.content.pm.ShortcutInfo
 import android.graphics.Rect
 import android.net.Uri
 import android.os.Handler
@@ -23,6 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+
+/** An app shortcut (long-press menu entry) as shown in the app pop-up. */
+data class ShortcutInfoItem(val id: String, val label: String, val info: ShortcutInfo)
 
 /**
  * The launcher's view of installed apps. Reads LauncherApps for every profile, keeps the `app`
@@ -105,6 +109,38 @@ class AppCatalog(
         }
     }
 
+    /**
+     * The app's shortcuts (static and dynamic). Only the default launcher may read them;
+     * otherwise this returns an empty list.
+     */
+    fun shortcuts(app: AppEntity): List<ShortcutInfoItem> {
+        val info = infos[app.id] ?: return emptyList()
+        if (!runCatching { launcherApps.hasShortcutHostPermission() }.getOrDefault(false)) return emptyList()
+        val query = LauncherApps.ShortcutQuery()
+            .setPackage(app.packageName)
+            .setActivity(info.componentName)
+            .setQueryFlags(
+                LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_MANIFEST or
+                    LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED,
+            )
+        return runCatching { launcherApps.getShortcuts(query, info.user).orEmpty() }
+            .getOrDefault(emptyList())
+            .filter { it.isEnabled }
+            .sortedBy { it.rank }
+            .distinctBy { it.id }
+            .take(MAX_SHORTCUTS)
+            .map { ShortcutInfoItem(it.id, (it.shortLabel ?: it.longLabel ?: it.id).toString(), it) }
+    }
+
+    fun shortcutIcon(item: ShortcutInfoItem) =
+        runCatching { launcherApps.getShortcutIconDrawable(item.info, context.resources.displayMetrics.densityDpi) }.getOrNull()
+
+    fun launchShortcut(item: ShortcutInfoItem, sourceBounds: Rect?) {
+        runCatching { launcherApps.startShortcut(item.info, sourceBounds, null) }
+            .onFailure { Log.w(TAG, "shortcut launch failed", it) }
+    }
+
     fun openAppInfo(app: AppEntity, sourceBounds: Rect?) {
         val info = infos[app.id] ?: return
         runCatching { launcherApps.startAppDetailsActivity(info.componentName, info.user, sourceBounds, null) }
@@ -124,5 +160,6 @@ class AppCatalog(
 
     private companion object {
         const val TAG = "AppCatalog"
+        const val MAX_SHORTCUTS = 5
     }
 }

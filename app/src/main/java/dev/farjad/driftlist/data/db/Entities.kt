@@ -48,31 +48,171 @@ data class AppEntity(
     }
 }
 
-/** Ordered favorites. Milestone 1 only stores apps; folders, stacks and shortcuts arrive with their tables. */
+/** Pinned deep shortcut (LauncherApps). Label cached so it renders before LauncherApps answers. */
+@Entity(
+    tableName = "shortcut",
+    indices = [Index(value = ["package_name", "shortcut_id", "user_serial"], unique = true)],
+)
+data class ShortcutEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "package_name") val packageName: String,
+    @ColumnInfo(name = "shortcut_id") val shortcutId: String,
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+    val label: String,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+@Entity(tableName = "widget_stack")
+data class WidgetStackEntity(
+    @PrimaryKey val id: String,
+    /** 'header' (under the clock), 'home', 'app_popup' or 'folder'. */
+    val location: String,
+    @ColumnInfo(name = "two_column") val twoColumn: Boolean = false,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+) {
+    companion object {
+        const val HEADER = "header"
+    }
+}
+
+@Entity(
+    tableName = "widget",
+    foreignKeys = [
+        ForeignKey(WidgetStackEntity::class, ["id"], ["stack_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [
+        Index(value = ["stack_id", "position"]),
+        Index(value = ["app_widget_id"], unique = true),
+    ],
+)
+data class WidgetEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "stack_id") val stackId: String,
+    @ColumnInfo(name = "app_widget_id") val appWidgetId: Int,
+    val provider: String,
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+    val position: Int,
+    @ColumnInfo(name = "height_dp") val heightDp: Int? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+@Entity(
+    tableName = "popup_folder",
+    foreignKeys = [
+        ForeignKey(WidgetStackEntity::class, ["id"], ["widget_stack_id"], onDelete = ForeignKey.SET_NULL),
+    ],
+    indices = [Index(value = ["widget_stack_id"])],
+)
+data class PopupFolderEntity(
+    @PrimaryKey val id: String,
+    val title: String,
+    @ColumnInfo(name = "widget_stack_id") val widgetStackId: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)
+
+/** Folder contents. No nested folders, by design. */
+@Entity(
+    tableName = "folder_item",
+    foreignKeys = [
+        ForeignKey(PopupFolderEntity::class, ["id"], ["folder_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(AppEntity::class, ["id"], ["app_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(ShortcutEntity::class, ["id"], ["shortcut_id"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [
+        Index(value = ["folder_id", "position"]),
+        Index(value = ["app_id"]),
+        Index(value = ["shortcut_id"]),
+    ],
+)
+data class FolderItemEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "folder_id") val folderId: String,
+    val position: Int,
+    val kind: String,
+    @ColumnInfo(name = "app_id") val appId: String? = null,
+    @ColumnInfo(name = "shortcut_id") val shortcutId: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+/** Ordered favorites. Exactly one of the target columns is set, matching [kind]. */
 @Entity(
     tableName = "home_item",
     foreignKeys = [
-        ForeignKey(
-            entity = AppEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["app_id"],
-            onDelete = ForeignKey.CASCADE,
-        ),
+        ForeignKey(AppEntity::class, ["id"], ["app_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(PopupFolderEntity::class, ["id"], ["folder_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(WidgetStackEntity::class, ["id"], ["widget_stack_id"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(ShortcutEntity::class, ["id"], ["shortcut_id"], onDelete = ForeignKey.CASCADE),
     ],
     indices = [
         Index(value = ["position"]),
         Index(value = ["app_id"], unique = true),
+        Index(value = ["folder_id"]),
+        Index(value = ["widget_stack_id"]),
+        Index(value = ["shortcut_id"]),
     ],
 )
 data class HomeItemEntity(
     @PrimaryKey val id: String,
     val position: Int,
     val kind: String = KIND_APP,
-    @ColumnInfo(name = "app_id") val appId: String?,
+    @ColumnInfo(name = "app_id") val appId: String? = null,
+    @ColumnInfo(name = "folder_id", defaultValue = "NULL") val folderId: String? = null,
+    @ColumnInfo(name = "widget_stack_id", defaultValue = "NULL") val widgetStackId: String? = null,
+    @ColumnInfo(name = "shortcut_id", defaultValue = "NULL") val shortcutId: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 ) {
     companion object {
         const val KIND_APP = "app"
+        const val KIND_FOLDER = "folder"
     }
 }
+
+/** Per-app, per-icon-pack choice, so switching packs and back restores the user's picks. */
+@Entity(
+    tableName = "icon_override",
+    foreignKeys = [ForeignKey(AppEntity::class, ["id"], ["app_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["app_id", "icon_pack"], unique = true)],
+)
+data class IconOverrideEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "app_id") val appId: String,
+    /** Icon pack package name, or [SYSTEM] for "system icons". */
+    @ColumnInfo(name = "icon_pack") val iconPack: String,
+    @ColumnInfo(name = "drawable_name") val drawableName: String?,
+    @ColumnInfo(name = "custom_uri") val customUri: String? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+) {
+    companion object {
+        const val SYSTEM = "system"
+    }
+}
+
+@Entity(tableName = "usage_rule", primaryKeys = ["package_name", "user_serial"])
+data class UsageRuleEntity(
+    @ColumnInfo(name = "package_name") val packageName: String,
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+@Entity(
+    tableName = "usage_session",
+    indices = [
+        Index(value = ["package_name", "user_serial", "ended_at"]),
+        Index(value = ["started_at"]),
+    ],
+)
+data class UsageSessionEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "package_name") val packageName: String,
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+    @ColumnInfo(name = "started_at") val startedAt: Long,
+    @ColumnInfo(name = "last_seen_at") val lastSeenAt: Long,
+    @ColumnInfo(name = "last_reminder_minute") val lastReminderMinute: Int = 0,
+    @ColumnInfo(name = "ended_at") val endedAt: Long? = null,
+)
