@@ -65,6 +65,17 @@ Harder than expected: Notification Summary. Holding a notification means cancell
 
 Tests: 9 unit, 23 instrumented, all passing. Onboarding copy fixed: favorites now sit under the clock by default, not at the bottom.
 
+## Milestone 4 (2026-10-12): everything else Niagara has
+
+| batch | commit | notes |
+| --- | --- | --- |
+| 1 search and settings | 194347e | calculator (pure parser, unit + UI test), engines + opt-in suggestions (INTERNET used only for this), contacts (opt-in), most used first, Quick replies, Screen time, rotation, status bar |
+| 2 home | febbb72 | torch row, Plug and Play, button shortcut + swipe-up (ButtonTarget parser, unit test), widget instead of clock, side-by-side layout (BUG-011 fixed, rotation UI test) |
+| 3 pop-ups | 7a42181 | apps inside app pop-ups (hidden "apppopup:" folders), widgets in folders and pop-ups (own stacks, released with the folder), hidden shortcuts, folders in the list; UI test |
+| 4 look and icons | 2f8430c | wallpapers drawn in code, window blur, theme files (unit-tested format, FileProvider share), Dots / Text only, uncovered icons, paused work profiles |
+
+Harder than expected: wallpaper blur. Android only blurs behind a window that has a background and asks for blur-behind; a fully transparent launcher window got nothing. A near-invisible background plus FLAG_BLUR_BEHIND fixed it (verified on the emulator). Tests: 36 unit, 32 instrumented, all passing.
+
 ## Bundled fonts (2026-10-12)
 
 User approved downloading 11 fonts from github.com/google/fonts (all SIL OFL 1.1, unmodified): Manrope, Outfit, Space Grotesk, Comfortaa, Lora, Playfair Display, Fraunces, DM Serif Display, JetBrains Mono, Bebas Neue, Caveat. About 2.2 MB in `res/font`; each file's size checked against the repo and its TrueType header checked before use. Licences ship in `assets/licenses/fonts` and show in Settings > About > Font licences. Variable fonts get real weights 300 to 800 from their weight axis, so Bold and Stacked clocks are truly bold (verified on the emulator with Manrope). Ready-made themes now use them (Ink: Lora, Night shift: Bebas Neue, Terminal: JetBrains Mono, Postcard: Caveat, Quiet: Manrope, new Gallery: Playfair Display). Tests: 23 unit, 29 instrumented, all passing.

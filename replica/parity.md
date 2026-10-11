@@ -1,5 +1,23 @@
 # Parity: Driftlist 0.2.0 (build 932fb1c) vs Niagara Launcher
 
+## Update after milestone 4: full parity (2026-10-12)
+
+| | |
+| --- | --- |
+| **Feature parity** | **99.4 / 100** (84.5 after M3b) |
+| Must-haves | **29 of 29** |
+| Open bugs | none (BUG-011 fixed) |
+| Verdict | **shippable**; every Niagara feature is built except what was left out on purpose |
+
+Built in M4, in four batches: calculator, search engines with opt-in live suggestions, contact search, most-used-first, Quick replies switch, Screen time shortcut, rotation, hidden status bar; flashlight reminder, Plug and Play, round-button shortcuts and swipe-up, widget instead of the clock, side-by-side layout for landscape and wide screens; apps and widgets inside app pop-ups, widgets in folders, hidden shortcuts per app, folders in the A-Z list; eight wallpapers of our own, window blur, wallpaper and icon style in themes, shareable theme files, Dots and Text only icons, uncovered-icon helper, paused work profiles.
+
+**Still partial:** Quick Lock: the lock needs the accessibility service switched on by hand, which hasn't been tried on a real phone.
+
+**Left out on purpose:** weather (user's call), Niagara ID and the Pro paywall (everything is free), Sesame (discontinued), Kagi sign-in (needs a paid account), Niagara's community Discord, and true app locking (not possible for a launcher). Niagara's own artwork is replaced by ours.
+
+**Not verified on a device:** a real work profile, a real music player on the music card, Notification Summary delivery, opening an event in a signed-in Google Calendar.
+
+
 ## Update after milestone 3b (2026-10-12)
 
 | | |
