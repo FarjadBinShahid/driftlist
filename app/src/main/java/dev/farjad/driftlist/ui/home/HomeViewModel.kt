@@ -18,6 +18,7 @@ import dev.farjad.driftlist.domain.AppSearch
 import dev.farjad.driftlist.system.SystemActions
 import dev.farjad.driftlist.system.apps.ShortcutInfoItem
 import dev.farjad.driftlist.system.notifications.AppKey
+import dev.farjad.driftlist.system.media.MediaState
 import dev.farjad.driftlist.system.notifications.NotifAction
 import dev.farjad.driftlist.system.notifications.NotifItem
 import androidx.compose.ui.graphics.ImageBitmap
@@ -76,9 +77,15 @@ data class HomeUiState(
     val list: AppListModel = AppListModel(),
     val notifications: Map<AppKey, List<NotifItem>> = emptyMap(),
     val setup: SetupStatus = SetupStatus(),
-    val headerWidget: WidgetEntity? = null,
+    val headerWidgets: List<WidgetEntity> = emptyList(),
     val settings: SettingsSnapshot = SettingsSnapshot(),
-)
+    /** Most-used apps that aren't favorites, shown under them (the reference's "suggestions"). */
+    val suggestions: List<AppEntity> = emptyList(),
+    val recentlyInstalled: List<AppEntity> = emptyList(),
+    val media: MediaState? = null,
+) {
+    val headerWidget: WidgetEntity? get() = headerWidgets.firstOrNull()
+}
 
 val AppEntity.key: AppKey get() = AppKey(packageName, userSerial)
 
@@ -130,26 +137,43 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }.flowOn(Dispatchers.Default)
 
     val state: StateFlow<HomeUiState> = combine(
-        library,
-        container.notifications.items,
-        setup,
-        db.widgetDao().observeHeaderWidgets(),
-        container.settings.flow,
-    ) { lib, notifications, setup, header, settings ->
-        HomeUiState(
-            loaded = true,
-            onboardingDone = settings.onboardingDone,
-            favorites = lib.favorites,
-            favoriteAppIds = lib.favorites.filterIsInstance<HomeEntry.App>().mapTo(HashSet()) { it.app.id },
-            allApps = lib.apps,
-            hiddenApps = lib.apps.filter { it.hidden }.sortedBy { it.label.lowercase() },
-            list = lib.list,
-            notifications = notifications,
-            setup = setup,
-            headerWidget = header.firstOrNull(),
-            settings = settings,
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loaded = false))
+        combine(
+            library,
+            container.notifications.items,
+            setup,
+            db.widgetDao().observeHeaderWidgets(),
+            container.settings.flow,
+        ) { lib, notifications, setup, header, settings ->
+            val favoriteIds = lib.favorites.filterIsInstance<HomeEntry.App>().mapTo(HashSet()) { it.app.id }
+            val nowMs = System.currentTimeMillis()
+            HomeUiState(
+                loaded = true,
+                onboardingDone = settings.onboardingDone,
+                favorites = lib.favorites,
+                favoriteAppIds = favoriteIds,
+                allApps = lib.apps,
+                hiddenApps = lib.apps.filter { it.hidden }.sortedBy { it.label.lowercase() },
+                list = lib.list,
+                notifications = notifications,
+                setup = setup,
+                headerWidgets = header,
+                settings = settings,
+                suggestions = if (!settings.suggestApps) emptyList() else lib.apps
+                    .filter { !it.hidden && !it.hiddenFromSuggestions && it.id !in favoriteIds && it.launchCount > 0 }
+                    .sortedWith(compareByDescending<AppEntity> { it.launchCount }.thenByDescending { it.lastLaunchedAt ?: 0L })
+                    .take(MAX_SUGGESTIONS),
+                recentlyInstalled = lib.apps
+                    .filter { !it.hidden && nowMs - it.installedAt < RECENT_WINDOW_MS }
+                    .sortedByDescending { it.installedAt },
+            )
+        },
+        container.media.state,
+    ) { s, media -> s.copy(media = media) }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loaded = false))
+
+    /** When an app was last opened from the A-Z list; Home within a few seconds returns there. */
+    var listLaunchAt = 0L
+        private set
 
     private val now get() = System.currentTimeMillis()
 
@@ -188,6 +212,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // --- apps -------------------------------------------------------------------------------
+
+    fun launchFromList(app: AppEntity, bounds: Rect?) {
+        listLaunchAt = System.currentTimeMillis()
+        launch(app, bounds)
+    }
+
+    fun stopSuggesting(app: AppEntity) {
+        viewModelScope.launch { appDao.setHiddenFromSuggestions(app.id, true, now) }
+    }
+
+    fun setFlag(name: String, value: Boolean) {
+        viewModelScope.launch { container.settings.setFlag(name, value) }
+    }
+
+    fun setButtonTarget(target: String?) {
+        viewModelScope.launch {
+            container.settings.setButtonTarget(target)
+            container.settings.setFlag("button_enabled", target != null)
+        }
+    }
+
+    fun mediaPlayPause() = container.media.playPause()
+    fun mediaNext() = container.media.next()
+    fun mediaPrevious() = container.media.previous()
+    fun mediaOpen() = container.media.open()
 
     fun launch(app: AppEntity, bounds: Rect?) {
         if (container.catalog.launch(app, bounds)) {
@@ -323,25 +372,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun bindWidgetIntent(appWidgetId: Int, provider: android.appwidget.AppWidgetProviderInfo): Intent? =
         widgetHost.bindOrIntent(appWidgetId, provider)
 
+    /** Adds to the header stack (up to 4 widgets). */
     fun saveHeaderWidget(appWidgetId: Int) {
         val info = widgetHost.info(appWidgetId) ?: return widgetHost.release(appWidgetId)
         viewModelScope.launch {
-            val previous = state.value.headerWidget
-            db.widgetDao().setHeaderWidget(
+            val added = db.widgetDao().addHeaderWidget(
                 appWidgetId,
                 info.provider.flattenToString(),
                 widgetHost.serialOf(info.profile),
                 now,
             )
-            previous?.let { widgetHost.release(it.appWidgetId) }
+            if (!added) widgetHost.release(appWidgetId)
         }
     }
 
-    fun removeHeaderWidget() {
-        val current = state.value.headerWidget ?: return
+    fun removeHeaderWidget(appWidgetId: Int) {
         viewModelScope.launch {
-            db.widgetDao().clearHeader()
-            widgetHost.release(current.appWidgetId)
+            db.widgetDao().deleteWidget(appWidgetId)
+            widgetHost.release(appWidgetId)
         }
     }
 
@@ -353,6 +401,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val s = state.value
         val pool = if (s.settings.searchIncludesHidden) s.allApps else s.allApps.filterNot { it.hidden }
         return AppSearch.rank(query, pool)
+    }
+
+    private companion object {
+        const val MAX_SUGGESTIONS = 3
+        const val RECENT_WINDOW_MS = 14L * 24 * 60 * 60 * 1000
     }
 
     private fun buildList(apps: List<AppEntity>): AppListModel {

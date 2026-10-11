@@ -65,6 +65,12 @@ class NotificationHub(private val context: Context) {
     @Volatile
     private var service: DriftNotificationListener? = null
 
+    /** Return true to take a notification out of the shade (Notification Summary). */
+    @Volatile var interceptor: ((StatusBarNotification) -> Boolean)? = null
+
+    /** Runs whenever the listener connects (the media card needs the same permission). */
+    @Volatile var onConnected: (() -> Unit)? = null
+
     fun hasAccess(): Boolean =
         NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
 
@@ -130,6 +136,7 @@ class NotificationHub(private val context: Context) {
     internal fun attach(listener: DriftNotificationListener) {
         service = listener
         _connected.value = true
+        onConnected?.invoke()
         replaceAll(listener.activeNotifications.orEmpty())
     }
 
@@ -146,6 +153,10 @@ class NotificationHub(private val context: Context) {
     }
 
     internal fun posted(sbn: StatusBarNotification) {
+        if (interceptor?.invoke(sbn) == true) {
+            service?.cancelNotification(sbn.key)
+            return
+        }
         val item = toItem(sbn)
         _items.update { current ->
             val app = item?.app ?: AppKey(sbn.packageName, serialOf(sbn))

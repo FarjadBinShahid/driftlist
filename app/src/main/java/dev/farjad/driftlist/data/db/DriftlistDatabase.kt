@@ -18,10 +18,13 @@ import androidx.room.RoomDatabase
         IconOverrideEntity::class,
         UsageRuleEntity::class,
         UsageSessionEntity::class,
+        SummaryRuleEntity::class,
+        NotificationBatchEntity::class,
+        BatchItemEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class DriftlistDatabase : RoomDatabase() {
     abstract fun appDao(): AppDao
@@ -31,6 +34,7 @@ abstract class DriftlistDatabase : RoomDatabase() {
     abstract fun widgetDao(): WidgetDao
     abstract fun iconOverrideDao(): IconOverrideDao
     abstract fun usageDao(): UsageDao
+    abstract fun summaryDao(): SummaryDao
 
     companion object {
         fun create(context: Context): DriftlistDatabase =

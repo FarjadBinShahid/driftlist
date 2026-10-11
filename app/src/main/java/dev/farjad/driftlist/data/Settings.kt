@@ -23,6 +23,15 @@ data class SettingsSnapshot(
     val usageBreaker: Boolean = false,
     /** false = favorites follow the clock (the reference's layout); true = anchored to the bottom. */
     val favoritesAtBottom: Boolean = false,
+    val suggestApps: Boolean = true,
+    val mediaCard: Boolean = true,
+    val buttonEnabled: Boolean = false,
+    /** "app:<appId>" or "folder:<folderId>", or null when unassigned. */
+    val buttonTarget: String? = null,
+    val leftHanded: Boolean = false,
+    val haptics: Boolean = true,
+    val quickLock: Boolean = false,
+    val notificationSummary: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -33,7 +42,30 @@ class Settings(private val context: Context) {
         val searchIncludesHidden = booleanPreferencesKey("search_includes_hidden")
         val usageBreaker = booleanPreferencesKey("usage_breaker")
         val favoritesAtBottom = booleanPreferencesKey("favorites_at_bottom")
+        val suggestApps = booleanPreferencesKey("suggest_apps")
+        val mediaCard = booleanPreferencesKey("media_card")
+        val buttonEnabled = booleanPreferencesKey("button_enabled")
+        val buttonTarget = stringPreferencesKey("button_target")
+        val leftHanded = booleanPreferencesKey("left_handed")
+        val haptics = booleanPreferencesKey("haptics")
+        val quickLock = booleanPreferencesKey("quick_lock")
+        val notificationSummary = booleanPreferencesKey("notification_summary")
     }
+
+    private val booleanKeys = mapOf(
+        "onboarding_done" to Keys.onboardingDone,
+        "swipe_up_search" to Keys.swipeUpSearch,
+        "search_includes_hidden" to Keys.searchIncludesHidden,
+        "usage_breaker" to Keys.usageBreaker,
+        "favorites_at_bottom" to Keys.favoritesAtBottom,
+        "suggest_apps" to Keys.suggestApps,
+        "media_card" to Keys.mediaCard,
+        "button_enabled" to Keys.buttonEnabled,
+        "left_handed" to Keys.leftHanded,
+        "haptics" to Keys.haptics,
+        "quick_lock" to Keys.quickLock,
+        "notification_summary" to Keys.notificationSummary,
+    )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
         SettingsSnapshot(
@@ -43,6 +75,14 @@ class Settings(private val context: Context) {
             searchIncludesHidden = p[Keys.searchIncludesHidden] ?: true,
             usageBreaker = p[Keys.usageBreaker] ?: false,
             favoritesAtBottom = p[Keys.favoritesAtBottom] ?: false,
+            suggestApps = p[Keys.suggestApps] ?: true,
+            mediaCard = p[Keys.mediaCard] ?: true,
+            buttonEnabled = p[Keys.buttonEnabled] ?: false,
+            buttonTarget = p[Keys.buttonTarget],
+            leftHanded = p[Keys.leftHanded] ?: false,
+            haptics = p[Keys.haptics] ?: true,
+            quickLock = p[Keys.quickLock] ?: false,
+            notificationSummary = p[Keys.notificationSummary] ?: false,
         )
     }
 
@@ -57,16 +97,23 @@ class Settings(private val context: Context) {
     suspend fun setUsageBreaker(value: Boolean) = context.dataStore.edit { it[Keys.usageBreaker] = value }
     suspend fun setFavoritesAtBottom(value: Boolean) = context.dataStore.edit { it[Keys.favoritesAtBottom] = value }
 
+    /** Generic boolean setter for the simple switches (keys as in [booleanKeys]). */
+    suspend fun setFlag(name: String, value: Boolean) {
+        val key = booleanKeys[name] ?: error("unknown setting $name")
+        context.dataStore.edit { it[key] = value }
+    }
+
+    suspend fun setButtonTarget(target: String?) = context.dataStore.edit {
+        if (target == null) it.remove(Keys.buttonTarget) else it[Keys.buttonTarget] = target
+    }
+
     /** For backup/restore. */
     suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap().mapKeys { it.key.name }
 
     suspend fun import(values: Map<String, Any?>) = context.dataStore.edit { p ->
         p.clear()
-        (values["onboarding_done"] as? Boolean)?.let { p[Keys.onboardingDone] = it }
+        for ((name, key) in booleanKeys) (values[name] as? Boolean)?.let { p[key] = it }
         (values["icon_pack"] as? String)?.let { p[Keys.iconPack] = it }
-        (values["swipe_up_search"] as? Boolean)?.let { p[Keys.swipeUpSearch] = it }
-        (values["search_includes_hidden"] as? Boolean)?.let { p[Keys.searchIncludesHidden] = it }
-        (values["usage_breaker"] as? Boolean)?.let { p[Keys.usageBreaker] = it }
-        (values["favorites_at_bottom"] as? Boolean)?.let { p[Keys.favoritesAtBottom] = it }
+        (values["button_target"] as? String)?.let { p[Keys.buttonTarget] = it }
     }
 }

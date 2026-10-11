@@ -63,6 +63,24 @@
             android:taskAffinity="dev.farjad.driftlist.settings"
             android:theme="@style/Theme.Driftlist.Settings" />
 
+        <!-- Quick Lock: double-tap the alphabet to turn the screen off. Reads no events or content. -->
+        <service
+            android:name=".system.QuickLockService"
+            android:exported="false"
+            android:label="Driftlist Quick Lock"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/quick_lock_service" />
+        </service>
+
+        <receiver
+            android:name=".system.notifications.SummaryReceiver"
+            android:exported="false" />
+
         <service
             android:name=".system.notifications.DriftNotificationListener"
             android:exported="true"

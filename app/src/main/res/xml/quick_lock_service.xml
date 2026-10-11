@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only GLOBAL_ACTION_LOCK_SCREEN is used: no event types, no window content. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canRetrieveWindowContent="false"
+    android:description="@string/quick_lock_description"
+    android:notificationTimeout="0"
+    android:packageNames="dev.farjad.driftlist.none" />

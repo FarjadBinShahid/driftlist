@@ -26,7 +26,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Gesture
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.SelfImprovement
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -62,7 +73,9 @@ import dev.farjad.driftlist.DriftlistApp
 import dev.farjad.driftlist.data.Backup
 import dev.farjad.driftlist.data.SettingsSnapshot
 import dev.farjad.driftlist.data.db.AppEntity
+import dev.farjad.driftlist.data.db.SummaryRuleEntity
 import dev.farjad.driftlist.data.db.UsageRuleEntity
+import dev.farjad.driftlist.system.QuickLockService
 import dev.farjad.driftlist.system.SystemActions
 import dev.farjad.driftlist.system.apps.IconPack
 import dev.farjad.driftlist.ui.components.AppMultiPicker
@@ -88,6 +101,7 @@ data class SettingsUiState(
     val settings: SettingsSnapshot = SettingsSnapshot(),
     val apps: List<AppEntity> = emptyList(),
     val usageRules: Set<String> = emptySet(),
+    val summaryRules: Set<String> = emptySet(),
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -98,8 +112,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         c.settings.flow,
         c.db.appDao().observeAll(),
         c.db.usageDao().observeRules(),
-    ) { s, apps, rules ->
-        SettingsUiState(s, apps.sortedBy { it.label.lowercase() }, rules.mapTo(HashSet()) { it.packageName })
+        c.db.summaryDao().observeRules(),
+    ) { s, apps, rules, summary ->
+        SettingsUiState(
+            s,
+            apps.sortedBy { it.label.lowercase() },
+            rules.mapTo(HashSet()) { it.packageName },
+            summary.mapTo(HashSet()) { it.packageName },
+        )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
     fun iconPacks(): List<IconPack> = c.iconPacks.installed()
@@ -108,6 +128,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSearchIncludesHidden(v: Boolean) = viewModelScope.launch { c.settings.setSearchIncludesHidden(v) }
     fun setUsageBreaker(v: Boolean) = viewModelScope.launch { c.settings.setUsageBreaker(v) }
     fun setFavoritesAtBottom(v: Boolean) = viewModelScope.launch { c.settings.setFavoritesAtBottom(v) }
+    fun setFlag(name: String, v: Boolean) = viewModelScope.launch { c.settings.setFlag(name, v) }
+    fun setButtonTarget(target: String?) = viewModelScope.launch { c.settings.setButtonTarget(target) }
     fun unhide(app: AppEntity) = viewModelScope.launch { c.db.appDao().setHidden(app.id, false, System.currentTimeMillis()) }
 
     fun toggleUsageRule(app: AppEntity) = viewModelScope.launch {
@@ -118,6 +140,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         c.db.usageDao().setRules(next.map { pkg -> UsageRuleEntity(pkg, serials[pkg] ?: app.userSerial, now) })
     }
 
+    fun toggleSummaryRule(app: AppEntity) = viewModelScope.launch {
+        val current = state.value.summaryRules
+        val next = if (app.packageName in current) current - app.packageName else current + app.packageName
+        val serials = state.value.apps.associate { it.packageName to it.userSerial }
+        c.db.summaryDao().setRules(next.map { pkg -> SummaryRuleEntity(pkg, serials[pkg] ?: app.userSerial) })
+    }
+
+    fun hasQuickLock() = QuickLockService.isEnabled(getApplication())
     fun hasUsageAccess() = c.usageBreaker.hasUsageAccess()
     fun canPostNotifications() = c.usageBreaker.canPostNotifications()
     fun hasNotificationAccess() = c.notifications.hasAccess()
@@ -132,11 +162,18 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
-private enum class Page(val title: String) {
+private enum class Page(val title: String, val parent: Page? = null) {
     Root("Settings"),
-    HiddenApps("Hidden apps"),
-    IconPack("Icon pack"),
-    TimeChecks("Time checks"),
+    Home("Home screen", Root),
+    Gestures("Gestures and search", Root),
+    Look("Look", Root),
+    Wellbeing("Wellbeing", Root),
+    Backup("Backup", Root),
+    About("About", Root),
+    HiddenApps("Hidden apps", Home),
+    IconPack("Icon pack", Look),
+    TimeChecks("Time checks", Wellbeing),
+    Summary("Notification Summary", Wellbeing),
 }
 
 /** S17 settings and its sub-pages (S22 behaviour, S24 hidden apps, S25 backup). */
@@ -156,14 +193,15 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf(Page.Root) }
     val snackbar = remember { SnackbarHostState() }
-    BackHandler(enabled = page != Page.Root) { page = Page.Root }
+    val back = { page = page.parent ?: Page.Root }
+    BackHandler(enabled = page != Page.Root, onBack = back)
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(page.title) },
                 navigationIcon = {
-                    TextButton(onClick = { if (page == Page.Root) onExit() else page = Page.Root }) {
+                    TextButton(onClick = { if (page == Page.Root) onExit() else back() }) {
                         Text(if (page == Page.Root) "Close" else "Back")
                     }
                 },
@@ -172,36 +210,210 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) { Snackbar(it) } },
     ) { padding ->
         when (page) {
-            Page.Root -> RootPage(vm, state, padding, snackbar, onNavigate = { page = it })
+            Page.Root -> RootPage(vm, state, padding, onNavigate = { page = it })
+            Page.Home -> HomePage(vm, state, padding, onNavigate = { page = it })
+            Page.Gestures -> GesturesPage(vm, state, padding)
+            Page.Look -> LookPage(vm, state, padding, onNavigate = { page = it })
+            Page.Wellbeing -> WellbeingPage(state, padding, onNavigate = { page = it })
+            Page.Backup -> BackupPage(vm, padding, snackbar)
+            Page.About -> AboutPage(padding)
             Page.HiddenApps -> HiddenAppsPage(vm, state, padding)
             Page.IconPack -> IconPackPage(vm, state, padding)
             Page.TimeChecks -> TimeChecksPage(vm, state, padding)
+            Page.Summary -> SummaryPage(vm, state, padding)
         }
     }
 }
 
 @Composable
-private fun RootPage(
-    vm: SettingsViewModel,
-    state: SettingsUiState,
-    padding: PaddingValues,
-    snackbar: SnackbarHostState,
-    onNavigate: (Page) -> Unit,
-) {
+private fun RootPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var isDefault by remember { mutableStateOf(vm.isDefaultLauncher()) }
     var hasNotif by remember { mutableStateOf(vm.hasNotificationAccess()) }
-    var confirmRestore by remember { mutableStateOf<Uri?>(null) }
     LifecycleResumeEffect(Unit) {
         isDefault = vm.isDefaultLauncher()
         hasNotif = vm.hasNotificationAccess()
         onPauseOrDispose { }
     }
-
     val roleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         isDefault = vm.isDefaultLauncher()
     }
+    val packLabel = remember(state.settings.iconPack) {
+        state.settings.iconPack?.let { pkg -> vm.iconPacks().firstOrNull { it.packageName == pkg }?.label ?: pkg }
+    }
+
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        if (!isDefault || !hasNotif) item { SectionHeader("Setup") }
+        if (!isDefault) {
+            item {
+                NavRow("Home app", "Not set. Tap to choose Driftlist", warning = true) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        val roles = context.getSystemService(RoleManager::class.java)
+                        roleLauncher.launch(roles.createRequestRoleIntent(RoleManager.ROLE_HOME))
+                    } else {
+                        SystemActions.start(context, SystemActions.homeSettingsIntent())
+                    }
+                }
+            }
+        }
+        if (!hasNotif) {
+            item {
+                NavRow("Notification access", "Needed for previews, replies, music and summaries", warning = true) {
+                    SystemActions.start(context, SystemActions.notificationAccessIntent(context))
+                }
+            }
+        }
+        item { Spacer(Modifier.height(SpaceTokens.s3)) }
+        item { CategoryRow("Home screen", "Favorites, suggestions, music, the round button", Icons.Outlined.Home) { onNavigate(Page.Home) } }
+        item { CategoryRow("Gestures and search", "Swipes, Home button, Quick Lock, left-handed", Icons.Outlined.Gesture) { onNavigate(Page.Gestures) } }
+        item { CategoryRow("Look", packLabel ?: "System icons", Icons.Outlined.Palette) { onNavigate(Page.Look) } }
+        item { CategoryRow("Wellbeing", "Time checks, Notification Summary", Icons.Outlined.SelfImprovement) { onNavigate(Page.Wellbeing) } }
+        item { CategoryRow("Backup", "Save or restore your setup", Icons.Outlined.Backup) { onNavigate(Page.Backup) } }
+        item { CategoryRow("About", "Driftlist ${BuildConfig.VERSION_NAME}", Icons.Outlined.Info) { onNavigate(Page.About) } }
+    }
+}
+
+@Composable
+private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
+    val s = state.settings
+    val hiddenCount = state.apps.count { it.hidden }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            ToggleRow(
+                "Favorites at the bottom",
+                "Off: favorites follow the clock. On: they sit at the bottom, closest to your thumb",
+                s.favoritesAtBottom,
+            ) { vm.setFlag("favorites_at_bottom", it) }
+        }
+        item {
+            ToggleRow("Suggest apps", "Your most-opened apps that aren't favorites, listed under them", s.suggestApps) {
+                vm.setFlag("suggest_apps", it)
+            }
+        }
+        item {
+            ToggleRow("Music card", "Play, pause and skip from home while something is playing", s.mediaCard) {
+                vm.setFlag("media_card", it)
+            }
+        }
+        item {
+            ToggleRow("Round button", "A shortcut to one app or folder at the bottom corner. Long-press it to change what it opens", s.buttonEnabled) {
+                vm.setFlag("button_enabled", it)
+                if (!it) vm.setButtonTarget(null)
+            }
+        }
+        item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
+    }
+}
+
+@Composable
+private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
+    val context = LocalContext.current
+    val s = state.settings
+    var hasLock by remember { mutableStateOf(vm.hasQuickLock()) }
+    var explain by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        hasLock = vm.hasQuickLock()
+        onPauseOrDispose { }
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            ToggleRow(
+                "Swipe up or press Home to search",
+                "A long swipe up on home, or Home while you're already there, opens search",
+                s.swipeUpSearch,
+            ) { vm.setFlag("swipe_up_search", it) }
+        }
+        item {
+            ToggleRow("Find hidden apps in search", "Hidden apps stay out of the list but can still be searched", s.searchIncludesHidden) {
+                vm.setFlag("search_includes_hidden", it)
+            }
+        }
+        item {
+            ToggleRow("Quick Lock", "Double-tap the alphabet to turn the screen off", s.quickLock) { on ->
+                vm.setFlag("quick_lock", on)
+                if (on && !vm.hasQuickLock()) explain = true
+            }
+        }
+        if (s.quickLock && !hasLock) {
+            item { NavRow("Quick Lock needs one more step", "Switch on Driftlist Quick Lock in accessibility settings", warning = true) { explain = true } }
+        }
+        item {
+            ToggleRow("Left-handed", "Puts the alphabet on the left edge", s.leftHanded) { vm.setFlag("left_handed", it) }
+        }
+        item {
+            ToggleRow("Vibrate on letters", "A light tick as you slide past each letter", s.haptics) { vm.setFlag("haptics", it) }
+        }
+    }
+    if (explain) {
+        PermissionDialog(
+            explainer = Explainers.quickLock(SystemActions.isSideloaded(context)),
+            onConfirm = {
+                explain = false
+                SystemActions.start(context, android.content.Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            },
+            onDismiss = { explain = false },
+        )
+    }
+}
+
+@Composable
+private fun LookPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
+    val packLabel = remember(state.settings.iconPack) {
+        state.settings.iconPack?.let { pkg -> vm.iconPacks().firstOrNull { it.packageName == pkg }?.label ?: pkg }
+    }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item { NavRow("Icon pack", packLabel ?: "System icons") { onNavigate(Page.IconPack) } }
+    }
+}
+
+@Composable
+private fun WellbeingPage(state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
+    val s = state.settings
+    fun count(n: Int) = "$n ${if (n == 1) "app" else "apps"}"
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            NavRow("Time checks", if (s.usageBreaker) "On for ${count(state.usageRules.size)}" else "Off") { onNavigate(Page.TimeChecks) }
+        }
+        item {
+            NavRow("Notification Summary", if (s.notificationSummary) "Holding ${count(state.summaryRules.size)}" else "Off") { onNavigate(Page.Summary) }
+        }
+    }
+}
+
+@Composable
+private fun SummaryPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
+    val context = LocalContext.current
+    var hasNotif by remember { mutableStateOf(vm.hasNotificationAccess()) }
+    LifecycleResumeEffect(Unit) {
+        hasNotif = vm.hasNotificationAccess()
+        onPauseOrDispose { }
+    }
+    val selected = remember(state.summaryRules, state.apps) {
+        state.apps.filter { it.packageName in state.summaryRules }.mapTo(HashSet()) { it.id }
+    }
+    Column(Modifier.fillMaxSize().padding(padding)) {
+        Text(
+            "Notifications from the apps you pick skip the shade and wait. You get them together in one notification, at most every few hours, on the hour.",
+            style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+            modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3),
+        )
+        ToggleRow("Notification Summary", null, state.settings.notificationSummary) { vm.setFlag("notification_summary", it) }
+        if (state.settings.notificationSummary && !hasNotif) {
+            NavRow("Notification access needed", "Driftlist can only hold notifications it can see", warning = true) {
+                SystemActions.start(context, SystemActions.notificationAccessIntent(context))
+            }
+        }
+        if (state.settings.notificationSummary) {
+            AppMultiPicker(state.apps.filterNot { it.hidden }, vm.icons, selected) { vm.toggleSummaryRule(it) }
+        }
+    }
+}
+
+@Composable
+private fun BackupPage(vm: SettingsViewModel, padding: PaddingValues, snackbar: SnackbarHostState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var confirmRestore by remember { mutableStateOf<Uri?>(null) }
     val createBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(Backup.MIME)) { uri ->
         uri ?: return@rememberLauncherForActivityResult
         scope.launch {
@@ -213,74 +425,7 @@ private fun RootPage(
         if (uri != null) confirmRestore = uri
     }
 
-    val hiddenCount = state.apps.count { it.hidden }
-    val packLabel = remember(state.settings.iconPack) {
-        state.settings.iconPack?.let { pkg -> vm.iconPacks().firstOrNull { it.packageName == pkg }?.label ?: pkg }
-    }
-
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item { SectionHeader("Setup") }
-        item {
-            NavRow(
-                title = "Home app",
-                value = if (isDefault) "Driftlist is your home screen" else "Not set. Tap to choose Driftlist",
-                warning = !isDefault,
-            ) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !isDefault) {
-                    val roles = context.getSystemService(RoleManager::class.java)
-                    roleLauncher.launch(roles.createRequestRoleIntent(RoleManager.ROLE_HOME))
-                } else {
-                    SystemActions.start(context, SystemActions.homeSettingsIntent())
-                }
-            }
-        }
-        item {
-            NavRow(
-                title = "Notification access",
-                value = if (hasNotif) "Allowed" else "Needed for previews and replies",
-                warning = !hasNotif,
-            ) { SystemActions.start(context, SystemActions.notificationAccessIntent(context)) }
-        }
-
-        item { SectionHeader("Home and search") }
-        item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
-        item {
-            ToggleRow(
-                "Favorites at the bottom",
-                "Off: favorites follow the clock. On: they sit at the bottom, closest to your thumb",
-                state.settings.favoritesAtBottom,
-                vm::setFavoritesAtBottom,
-            )
-        }
-        item {
-            ToggleRow(
-                "Swipe up or press Home to search",
-                "A long swipe up on home, or Home while you're already there, opens search",
-                state.settings.swipeUpSearch,
-                vm::setSwipeUpSearch,
-            )
-        }
-        item {
-            ToggleRow(
-                "Find hidden apps in search",
-                "Hidden apps stay out of the list but can still be searched",
-                state.settings.searchIncludesHidden,
-                vm::setSearchIncludesHidden,
-            )
-        }
-
-        item { SectionHeader("Look") }
-        item { NavRow("Icon pack", packLabel ?: "System icons") { onNavigate(Page.IconPack) } }
-
-        item { SectionHeader("Wellbeing") }
-        item {
-            NavRow(
-                "Time checks",
-                if (state.settings.usageBreaker) "On for ${state.usageRules.size} ${if (state.usageRules.size == 1) "app" else "apps"}" else "Off",
-            ) { onNavigate(Page.TimeChecks) }
-        }
-
-        item { SectionHeader("Backup") }
         item {
             NavRow("Save a backup", "Favorites, folders, names, hidden apps, icons and settings") {
                 val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmm"))
@@ -288,9 +433,6 @@ private fun RootPage(
             }
         }
         item { NavRow("Restore a backup", "Replaces your current setup") { openBackup.launch(arrayOf("application/json", "*/*")) } }
-
-        item { SectionHeader("About") }
-        item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher. Everything stays on this phone.") {} }
     }
 
     confirmRestore?.let { uri ->
@@ -320,6 +462,14 @@ private fun RootPage(
             },
             dismissButton = { TextButton(onClick = { confirmRestore = null }) { Text("Cancel") } },
         )
+    }
+}
+
+@Composable
+private fun AboutPage(padding: PaddingValues) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher.") {} }
+        item { NavRow("Privacy", "No accounts, no ads, no network. Everything stays on this phone.") {} }
     }
 }
 
@@ -417,6 +567,25 @@ private fun TimeChecksPage(vm: SettingsViewModel, state: SettingsUiState, paddin
 }
 
 // --- rows -------------------------------------------------------------------------------------
+
+@Composable
+private fun CategoryRow(title: String, value: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = SizeTokens.settingsRow)
+            .clickable(onClick = onClick)
+            .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s4),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s6),
+    ) {
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface))
+            Text(value, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
+        }
+    }
+}
 
 @Composable
 private fun SectionHeader(text: String) {

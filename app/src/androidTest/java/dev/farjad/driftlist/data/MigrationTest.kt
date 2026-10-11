@@ -52,6 +52,27 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun v2ToV3KeepsFavoritesAndAddsSummaryTables() {
+        helper.createDatabase(DB, 2).apply {
+            execSQL(
+                """insert into app (id, package_name, activity_class, user_serial, system_label, custom_label,
+                   sort_key, bucket, hidden, hidden_from_suggestions, is_system, installed_at, last_launched_at,
+                   launch_count, created_at, updated_at)
+                   values ('a', 'pkg.a', 'Main', 0, 'Alpha', null, 'alpha', 'A', 0, 0, 0, 1, null, 0, 1, 1)""",
+            )
+            execSQL("insert into home_item (id, position, kind, app_id, created_at, updated_at) values ('h', 0, 'app', 'a', 1, 1)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(DB, 3, true)
+
+        db.query("select count(*) from home_item").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.execSQL("insert into summary_rule (package_name, user_serial) values ('pkg.a', 0)")
+        db.query("select count(*) from summary_rule").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.close()
+    }
+
     private companion object {
         const val DB = "migration-test.db"
     }

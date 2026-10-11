@@ -72,6 +72,9 @@ fun WaveAlphabet(
     onFavorites: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
+    leftHanded: Boolean = false,
+    haptics: Boolean = true,
+    onDoubleTap: (() -> Unit)? = null,
 ) {
     val colors = LocalHomeColors.current
     val view = LocalView.current
@@ -86,6 +89,9 @@ fun WaveAlphabet(
     val latestLetter by rememberUpdatedState(onLetter)
     val latestFavorites by rememberUpdatedState(onFavorites)
     val latestSettings by rememberUpdatedState(onSettings)
+    val latestDoubleTap by rememberUpdatedState(onDoubleTap)
+    val direction = if (leftHanded) 1f else -1f
+    var lastTapAt by remember { mutableStateOf(0L) }
 
     var heightPx by remember { mutableIntStateOf(1) }
     var fingerY by remember { mutableStateOf<Float?>(null) }
@@ -144,7 +150,7 @@ fun WaveAlphabet(
                         val entry = entries[i]
                         if (entry != current) {
                             current = entry
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            if (haptics) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                             when (entry) {
                                 STAR -> latestFavorites()
                                 CIRCLE -> Unit // settings only on release, so sliding past it is harmless
@@ -158,14 +164,27 @@ fun WaveAlphabet(
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         down.consume()
+                        val downAt = System.currentTimeMillis()
+                        var moved = false
                         scope.launch { intensity.animateTo(1f, tween(MotionTokens.fastMs)) }
                         pick(down.position.y)
                         while (true) {
                             val event = awaitPointerEvent()
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) break
+                            if (kotlin.math.abs(change.position.y - down.position.y) > slot) moved = true
                             pick(change.position.y)
                             change.consume()
+                        }
+                        // Quick Lock: two short taps in a row on the strip.
+                        val upAt = System.currentTimeMillis()
+                        if (!moved && upAt - downAt < 250) {
+                            if (upAt - lastTapAt < 350) {
+                                lastTapAt = 0L
+                                latestDoubleTap?.invoke()
+                            } else {
+                                lastTapAt = upAt
+                            }
                         }
                         if (current == CIRCLE) latestSettings()
                         current = null
@@ -192,7 +211,7 @@ fun WaveAlphabet(
                             val scale = 1f + (WaveTokens.maxScale - 1f) * t
                             scaleX = scale
                             scaleY = scale
-                            translationX = -maxOffsetPx * t
+                            translationX = direction * maxOffsetPx * t
                         },
                     contentAlignment = Alignment.Center,
                 ) {
@@ -213,7 +232,7 @@ fun WaveAlphabet(
                 modifier = Modifier
                     .offset {
                         IntOffset(
-                            x = -(maxOffsetPx + bubblePx * 0.6f).roundToInt(),
+                            x = (direction * (maxOffsetPx + bubblePx * 0.6f)).roundToInt(),
                             y = (bandTop + y - bubblePx / 2).roundToInt(),
                         )
                     }

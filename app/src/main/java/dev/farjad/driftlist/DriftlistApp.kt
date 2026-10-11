@@ -12,7 +12,9 @@ import dev.farjad.driftlist.data.db.DriftlistDatabase
 import dev.farjad.driftlist.system.apps.AppCatalog
 import dev.farjad.driftlist.system.apps.IconCache
 import dev.farjad.driftlist.system.apps.IconPacks
+import dev.farjad.driftlist.system.media.MediaHub
 import dev.farjad.driftlist.system.notifications.NotificationHub
+import dev.farjad.driftlist.system.notifications.NotificationSummary
 import dev.farjad.driftlist.system.usage.UsageBreaker
 import dev.farjad.driftlist.system.widgets.WidgetHostManager
 import kotlinx.coroutines.CoroutineScope
@@ -34,6 +36,8 @@ class AppContainer(context: Context) {
     val notifications = NotificationHub(context)
     val widgetHost = WidgetHostManager(context)
     val usageBreaker = UsageBreaker(context, db, scope)
+    val media = MediaHub(context)
+    val summary = NotificationSummary(context, db, scope)
     val backup = Backup(db, settings)
 }
 
@@ -48,6 +52,13 @@ class DriftlistApp : Application() {
         c.catalog.onSynced = c.icons::onCatalogSynced
         c.catalog.start()
         c.usageBreaker.start()
+        c.summary.start()
+        c.notifications.interceptor = c.summary::intercept
+        c.notifications.onConnected = { c.media.start() }
+        if (c.notifications.hasAccess()) c.media.start()
+        c.scope.launch {
+            c.settings.flow.map { it.notificationSummary }.distinctUntilChanged().collect { c.summary.enabled = it }
+        }
 
         // Icons follow the chosen pack and the user's per-app picks.
         c.scope.launch {

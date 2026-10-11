@@ -46,6 +46,25 @@ One line per screen. Screenshots are in `clone-screens/`, taken on the `Medium_P
 
 Harder than expected: Compose's Popup positions in window coordinates, so the card has to be placed from the row's window bounds, not its parent. Letters spread across the whole band on phones with few apps until the slot size was fixed at the measured ~18 dp.
 
+## Milestone 3b part 1 (2026-10-12): home and behaviour should-haves
+
+| ID | status | notes |
+| --- | --- | --- |
+| Suggested apps | done | top 3 most-opened non-favorites; Stop suggesting sets `hidden_from_suggestions` |
+| Music card | done | MediaSessionManager through the notification listener component; not tried with a real player on the emulator |
+| Widget stacks | done | HorizontalPager, dots, accessibility next/previous; header sheet removes the page on screen |
+| Action button | done | app or favorites folder; long-press to change; shortcut and swipe-up targets not built |
+| List search button, Recently installed | done | footer row with count, sheet of the last 14 days |
+| Left-hand mode | done | first pass left the 40 dp gutter beside the strip; mirrored the padding after seeing it on the emulator |
+| Home within 3 s | done | `listLaunchAt` in the view model; verified both sides of the 3 s line |
+| Quick Lock | partial | accessibility service that only calls GLOBAL_ACTION_LOCK_SCREEN; toggle and explainer verified, the lock itself needs the user to switch the service on |
+| Notification Summary | done | Room v3 (summary_rule, notification_batch, batch_item) with a v2 to v3 migration test; first delivery at +5.5 h rounded up to the hour, `AlarmManager.setWindow`; delivery not observed end to end |
+| Settings sub-pages (L12) | done | Home screen, Gestures and search, Look, Wellbeing, Backup, About |
+
+Harder than expected: Notification Summary. Holding a notification means cancelling it from the shade inside the listener, so the batch has to keep enough (title, text, package) to rebuild a useful summary later.
+
+Tests: 9 unit, 23 instrumented, all passing. Onboarding copy fixed: favorites now sit under the clock by default, not at the bottom.
+
 ## Bugs found and fixed during the milestone 2 run-through
 
 1. **Upgrading from 0.1.0 would have wiped favorites.** Onboarding showed for anyone without the new "onboarding done" flag, and finishing it replaced the favorites. Now it's skipped and marked done when favorites already exist.

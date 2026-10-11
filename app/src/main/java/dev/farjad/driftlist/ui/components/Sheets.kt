@@ -24,7 +24,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Widgets
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
@@ -60,6 +62,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ImageBitmap
@@ -312,6 +315,8 @@ fun AppOptionsSheet(
     onUninstall: () -> Unit,
     onOpenSettings: () -> Unit,
     onClose: () -> Unit,
+    isSuggestion: Boolean = false,
+    onStopSuggesting: () -> Unit = {},
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
@@ -336,6 +341,9 @@ fun AppOptionsSheet(
                 TextButton(onClick = { onRename(name) }) { Text("Save") }
             }
         } else {
+            if (isSuggestion) {
+                OptionRow("Stop suggesting", onStopSuggesting, icon = Icons.Outlined.Block, supporting = "Won't appear under your favorites again")
+            }
             OptionRow(
                 if (isFavorite) "Remove from favorites" else "Add to favorites",
                 onToggleFavorite,
@@ -441,11 +449,45 @@ fun FolderOptionsSheet(title: String, onEdit: () -> Unit, onRemove: () -> Unit, 
     }
 }
 
-// --- S12 header options -----------------------------------------------------------------------
+// --- S12 header options ---------------------------------------------------------------------
+
+/** One rounded card row, the style the reference uses in its clock sheet. */
+@Composable
+fun CardRow(
+    title: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    supporting: String? = null,
+    trailing: @Composable (() -> Unit)? = null,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(RadiusTokens.lg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s2)
+            .clip(RoundedCornerShape(RadiusTokens.lg))
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            Modifier.heightIn(min = 60.dp).padding(horizontal = SpaceTokens.s5, vertical = SpaceTokens.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(SizeTokens.sheetIcon))
+            Column(Modifier.weight(1f)) {
+                Text(title, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface))
+                supporting?.let { Text(it, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant)) }
+            }
+            trailing?.invoke()
+        }
+    }
+}
 
 @Composable
 fun HeaderOptionsSheet(
-    hasWidget: Boolean,
+    widgetCount: Int,
+    maxWidgets: Int,
     onAddWidget: () -> Unit,
     onRemoveWidget: () -> Unit,
     onEditFavorites: () -> Unit,
@@ -454,15 +496,24 @@ fun HeaderOptionsSheet(
 ) {
     DriftSheet(onClose) {
         SheetTitle("Home screen")
-        OptionRow(if (hasWidget) "Replace widget" else "Add a widget", onAddWidget)
-        if (hasWidget) OptionRow("Remove widget", onRemoveWidget, destructive = true)
-        OptionRow("Edit favorites", onEditFavorites)
-        OptionRow("Driftlist settings", onOpenSettings)
-        Text(
-            "Clock styles, weather and calendar come in a later version.",
-            style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant),
-            modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3),
-        )
+        if (widgetCount < maxWidgets) {
+            CardRow(
+                if (widgetCount == 0) "Add a widget" else "Add another widget",
+                Icons.Outlined.Widgets,
+                onAddWidget,
+                supporting = if (widgetCount == 0) "Shown under the clock" else "Swipe between up to $maxWidgets",
+            )
+        }
+        if (widgetCount > 0) {
+            CardRow(
+                if (widgetCount == 1) "Remove widget" else "Remove the widget you're looking at",
+                Icons.Outlined.Delete,
+                onRemoveWidget,
+            )
+        }
+        CardRow("Edit favorites", Icons.Outlined.Reorder, onEditFavorites)
+        CardRow("Driftlist settings", Icons.Outlined.Settings, onOpenSettings)
+        Box(Modifier.height(SpaceTokens.s2))
     }
 }
 

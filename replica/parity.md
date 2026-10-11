@@ -1,5 +1,22 @@
 # Parity: Driftlist 0.2.0 (build 932fb1c) vs Niagara Launcher
 
+## Update after milestone 3b part 1 (2026-10-12)
+
+| | |
+| --- | --- |
+| **Feature parity** | **74.5 / 100** (was 63.2 after M3a); calendar and weather rows are `skip` at the user's request |
+| Must-haves | **29 of 29** |
+| Open bugs | no S1, no S2; one S4 (BUG-011) |
+| Verdict | **not shippable yet**: all must-haves done, score under 80 |
+
+Built in M3b part 1: suggested apps with "Stop suggesting", the music card, widget stacks (up to 4), the round action button (app or folder), the search button and "Recently installed" footer in the list, left-hand mode, the haptics toggle, Home within 3 s returning to the list, Quick Lock (double-tap the strip), Notification Summary, and settings split into six sub-pages (gap L12 closed).
+
+Weakest areas now: layout 17 (foldable two-column, landscape), theming 18, search 56 (calculator, live web suggestions).
+
+**Next:** theming part 1 (wallpaper colours, clock styles, OFL fonts, ready-made themes), then the header position slider and the search calculator. Theming alone is worth about +9 points, which takes the score past 80.
+
+The rest of this file is the 2026-10-11 baseline, kept for history.
+
 Date: 2026-10-11. Tools: `replica/parity.py` (features), `replica/imgdiff.py` (layout, not run; see below).
 
 ## Verdict: not shippable yet, but close on the core
@@ -103,7 +120,7 @@ Driftlist's side was walked on the emulator. Niagara's side comes from its help 
 | F13 Time checks | 5/10/20…240 min ladder, Pro only | same ladder, free | keep |
 | Pro features | ~14 features behind a paywall | everything free | keep |
 | Icon picker | Icon Assistant learns from other users' picks | name-matched icons first, nothing leaves the phone | keep (privacy) |
-| HOME from an app within 3 s | returns to the app list where you were | returns to favorites | fix later (should-have) |
+| HOME from an app within 3 s | returns to the app list where you were | same (M3b) | done |
 
 ## Top five to build next
 

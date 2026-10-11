@@ -58,6 +58,12 @@ object Explainers {
         steps = if (sideloaded) restrictedSteps else emptyList(),
     )
 
+    fun quickLock(sideloaded: Boolean) = PermissionExplainer(
+        title = "Turn on Quick Lock",
+        body = "Android only lets apps turn the screen off through an accessibility service. Driftlist's service reads nothing on screen; it only locks. In the list, open Driftlist Quick Lock and switch it on.",
+        steps = if (sideloaded) restrictedSteps else emptyList(),
+    )
+
     fun usageAccess(sideloaded: Boolean) = PermissionExplainer(
         title = "Let Driftlist see which app is open",
         body = "Time checks need usage access to count how long you've been in an app. Android opens a list of apps; pick Driftlist and switch it on. The data stays on this phone.",

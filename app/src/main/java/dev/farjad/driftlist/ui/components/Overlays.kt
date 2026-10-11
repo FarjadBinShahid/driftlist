@@ -170,7 +170,7 @@ fun Onboarding(
                     modifier = Modifier.padding(start = SpaceTokens.s7, end = SpaceTokens.s7, top = SpaceTokens.s7).semantics { heading() },
                 )
                 Text(
-                    "They sit at the bottom of your home screen. Four to seven works well. You can change them any time.",
+                    "They sit on your home screen, under the clock. Four to seven works well. You can change them any time.",
                     style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
                     modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s2),
                 )

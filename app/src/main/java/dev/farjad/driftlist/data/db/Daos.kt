@@ -36,6 +36,9 @@ abstract class AppDao {
     @Query("update app set hidden = :hidden, updated_at = :now where id = :id")
     abstract suspend fun setHidden(id: String, hidden: Boolean, now: Long)
 
+    @Query("update app set hidden_from_suggestions = :hidden, updated_at = :now where id = :id")
+    abstract suspend fun setHiddenFromSuggestions(id: String, hidden: Boolean, now: Long)
+
     /**
      * Make the table match what LauncherApps reports, keeping the user's own edits
      * (rename, hidden, counters) on apps that are still installed.
@@ -273,6 +276,32 @@ abstract class WidgetDao {
     @Query("delete from widget_stack where location = 'header'")
     abstract suspend fun clearHeader()
 
+    @Query("select * from widget_stack where location = 'header' limit 1")
+    abstract suspend fun headerStack(): WidgetStackEntity?
+
+    @Query("select count(*) from widget where stack_id = :stackId")
+    abstract suspend fun countIn(stackId: String): Int
+
+    @Query("delete from widget where app_widget_id = :appWidgetId")
+    abstract suspend fun deleteWidget(appWidgetId: Int)
+
+    /** Adds a widget to the header stack (max 4). Returns false when the stack is full. */
+    @Transaction
+    open suspend fun addHeaderWidget(appWidgetId: Int, provider: String, userSerial: Long, now: Long): Boolean {
+        val stack = headerStack() ?: WidgetStackEntity(UUID.randomUUID().toString(), WidgetStackEntity.HEADER, createdAt = now, updatedAt = now)
+            .also { insertStack(it) }
+        val count = countIn(stack.id)
+        if (count >= MAX_STACK) return false
+        insertWidget(
+            WidgetEntity(UUID.randomUUID().toString(), stack.id, appWidgetId, provider, userSerial, position = count, createdAt = now, updatedAt = now),
+        )
+        return true
+    }
+
+    companion object {
+        const val MAX_STACK = 4
+    }
+
     /** Milestone 2 keeps exactly one header widget: replace whatever was there. */
     @Transaction
     open suspend fun setHeaderWidget(appWidgetId: Int, provider: String, userSerial: Long, now: Long) {
@@ -291,6 +320,53 @@ abstract class WidgetDao {
                 updatedAt = now,
             ),
         )
+    }
+}
+
+@Dao
+abstract class SummaryDao {
+    @Query("select * from summary_rule")
+    abstract fun observeRules(): Flow<List<SummaryRuleEntity>>
+
+    @Query("select * from summary_rule")
+    abstract suspend fun rules(): List<SummaryRuleEntity>
+
+    @Insert
+    abstract suspend fun insertRules(rules: List<SummaryRuleEntity>)
+
+    @Query("delete from summary_rule")
+    abstract suspend fun clearRules()
+
+    @Transaction
+    open suspend fun setRules(rules: List<SummaryRuleEntity>) {
+        clearRules()
+        insertRules(rules)
+    }
+
+    @Query("select * from notification_batch where delivered_at is null limit 1")
+    abstract suspend fun openBatch(): NotificationBatchEntity?
+
+    @Insert
+    abstract suspend fun insertBatch(batch: NotificationBatchEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun upsertItem(item: BatchItemEntity)
+
+    @Query("select * from batch_item where batch_id = :batchId order by posted_at")
+    abstract suspend fun items(batchId: String): List<BatchItemEntity>
+
+    @Query("update notification_batch set delivered_at = :now where id = :batchId")
+    abstract suspend fun markDelivered(batchId: String, now: Long)
+
+    @Query("delete from notification_batch where delivered_at is not null")
+    abstract suspend fun deleteDelivered()
+
+    /** Adds to the open batch, opening one (with its delivery time) if needed. Returns the batch. */
+    @Transaction
+    open suspend fun hold(item: BatchItemEntity, newBatch: () -> NotificationBatchEntity): NotificationBatchEntity {
+        val batch = openBatch() ?: newBatch().also { insertBatch(it) }
+        upsertItem(item.copy(batchId = batch.id))
+        return batch
     }
 }
 

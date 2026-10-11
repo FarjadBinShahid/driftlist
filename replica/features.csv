@@ -6,11 +6,11 @@ Home screen favorites list (icon + label),home,must,yes,yes,free; S05
 Clock and date header (tap opens clock / calendar),home,must,yes,yes,free; S05
 Full alphabetical app list with letter headers,app list,must,yes,yes,free; S06
 Wave alphabet scroller on right edge,app list,must,yes,yes,"M3a: star, letters with apps only, settings circle; V-shaped sideways wave measured on the reference; section lands a third of the way down"
-Haptic tick per letter (toggle),app list,should,yes,partial,free; Settings > Features
+Haptic tick per letter (toggle),app list,should,yes,yes,M3b: Settings > Gestures and search > Vibrate on letters
 Locale-aware alphabet buckets (# and extra letters),app list,should,yes,yes,free; ICU AlphabeticIndex; help 155
 Live app list updates on install / uninstall / update,core,must,yes,yes,free; LauncherApps callbacks
 Work profile / multi-user apps shown,core,should,yes,partial,free; user_handle on LauncherApp
-Recently installed list in app list footer,app list,should,yes,no,free; S28
+Recently installed list in app list footer,app list,should,yes,yes,M3b: footer row with a count opens a sheet of the last 14 days
 Inline notification preview on app rows,notifications,must,yes,yes,M3a: shows the age (Messages · 4m) and a > button that opens the pop-up
 Swipe right on app opens app pop-up,pop-ups,must,yes,yes,M3a: floating card anchored at the swiped row (measured on the reference)
 Notifications in app pop-up: expand and dismiss,notifications,must,yes,yes,"M2: full text, swipe-left dismiss, action buttons"
@@ -19,12 +19,12 @@ App shortcuts in app pop-up,pop-ups,must,yes,yes,M2: needs Driftlist to be the d
 Hide shortcuts per app,pop-ups,could,yes,no,free; help 84
 Swipe down anywhere opens notification shade,gestures,must,yes,yes,free; help 98
 Long swipe up opens search (quick swipe scrolls),gestures,must,yes,yes,M2
-HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,partial,M2: Home-on-home opens search; the 3-second return to list position is not built
+HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,yes,M3b: an app opened from the list and Home within 3 s lands back on the list where you left it (verified on emulator)
 App options sheet on long-press,home,must,yes,yes,"M3a: icons, Edit favorites for favorites, rarer actions under More, settings link"
 Rename app,home,must,yes,yes,M2: renamed apps re-sort under their new name
 Hide app from app list + hidden apps screen,wellbeing,must,yes,yes,M2
 Edit favorites: reorder / add / remove,home,must,yes,yes,M2: drag handle + TalkBack move actions
-Suggested apps (most used) below favorites; long-press to hide,home,should,yes,no,free; usage counters
+Suggested apps (most used) below favorites; long-press to hide,home,should,yes,yes,M3b: top 3 most-opened non-favorites under a Suggested heading; Stop suggesting in the long-press sheet; toggle in Home screen settings
 Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,yes,M3a: long-press a shortcut in an app pop-up to add it to a folder; shortcuts are pinned and backed up; verified on the emulator
 Pop-up folders shown as categories in app list,pop-ups,could,yes,no,pro
 Customizable app pop-ups (used like folders),pop-ups,could,yes,no,pro
@@ -33,12 +33,12 @@ Integrated calculator in search,search,should,yes,no,free; expression parser per
 Web search suggestions with engine choice,search,should,yes,partial,"M2: ""Search the web"" hands off to the system web search; no live suggestions or engine choice yet"
 Contact search with call / message,search,could,yes,no,pro; conflicting sources on whether shipped natively
 Option to exclude hidden apps from search,search,could,yes,yes,M2: setting
-Media player card on home (auto show / hide),home,should,yes,no,free; MediaSessionManager; help 11
-Niagara-style action button (tap action),home,should,yes,no,free; S16; one app
-Action button: folder / shortcut / swipe-up second action,home,could,yes,no,pro
+Media player card on home (auto show / hide),home,should,yes,yes,"M3b: MediaSessionManager via the notification listener; play/pause/skip, tap opens the player; not tested with a real player on the emulator"
+Niagara-style action button (tap action),home,should,yes,yes,M3b: round button bottom corner; long-press picks the target (verified opening Camera)
+Action button: folder / shortcut / swipe-up second action,home,could,yes,partial,M3b: opens an app or a favorites folder; no shortcut target or swipe-up second action
 Move clock/header position slider,home,should,yes,no,free; help 156
-Settings screen with sections,settings,must,yes,yes,M2
-Left-hand mode (left edge scroller),accessibility,should,yes,no,free; help 39
+Settings screen with sections,settings,must,yes,yes,"M3b: root with six sub-pages (Home screen, Gestures and search, Look, Wellbeing, Backup, About); setup rows only while something is missing"
+Left-hand mode (left edge scroller),accessibility,should,yes,yes,"M3b: strip, wave, bubble and the round buttons mirror to the left (verified on emulator)"
 Light / dark mode,theming,must,yes,yes,M2: sheets and settings follow the system theme; home follows the wallpaper (verified in test pass P-3)
 Wallpaper-derived colour palette (Material You backport),theming,should,yes,no,free; Material Color Utilities; help 133
 Accent colour override,theming,could,yes,no,free; Edit Current Theme
@@ -57,16 +57,16 @@ Custom fonts (bundled + import .ttf/.otf),theming,should,yes,no,pro; help 79; sh
 Clock styles,theming,should,yes,no,pro; design own styles
 Replace clock with widget,widgets,could,yes,no,pro?; help 23
 Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + configure verified with the Clock widget
-Widget stacks (up to 4 / swipe to switch),widgets,should,yes,no,pro; help 41
+Widget stacks (up to 4 / swipe to switch),widgets,should,yes,yes,M3b: pager with dots and accessibility next/previous; header sheet adds or removes the page you're on
 Widgets inside app pop-ups and folders,widgets,could,yes,no,pro
 Two-column layout on foldables / tablets,layout,could,yes,no,free; help 100
 Landscape support,layout,could,yes,partial,"test pass F03-E7: works, but the big clock pushes the last favorite below the fold (BUG-011)"
-Calendar upcoming events on home + agenda sheet,widgets,should,yes,no,pro; CalendarContract; S14
-Calendar event filter by calendar,widgets,could,yes,no,pro
-Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,no,pro; own API key (Open-Meteo is keyless); current or fixed location; C/F
+Calendar upcoming events on home + agenda sheet,widgets,should,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
+Calendar event filter by calendar,widgets,could,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
+Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,skip,user decision 2026-10-12: not needed; any calendar or weather widget (e.g. Google Calendar) works in the header widget slot
 Usage Breaker reminders (5..240 min ladder),wellbeing,must,yes,yes,"M2: verified on emulator, reminders at 5 and 10 min; never blocks"
-Notification Summary batching,wellbeing,should,yes,no,free/beta; S31; 5.5-6.5h schedule; Android 8+
-Double-tap alphabet to sleep (Quick Lock),gestures,should,yes,no,pro; AccessibilityService GLOBAL_ACTION_LOCK_SCREEN; Android 9+
+Notification Summary batching,wellbeing,should,yes,yes,"M3b: picked apps are held and delivered in one notification, first at +5.5 h rounded to the hour (AlarmManager window); unit-tested schedule, delivery not observed end to end"
+Double-tap alphabet to sleep (Quick Lock),gestures,should,yes,partial,"M3b: double-tap detection, settings toggle and explainer verified; the lock itself needs the accessibility service switched on by the user, not tested"
 Hide status bar,theming,could,yes,no,pro
 Plug and Play: music apps appear when headphones connect,home,could,yes,no,pro; AudioDeviceCallback
 Flashlight-on reminder row,home,could,yes,no,free; v1.16.28; CameraManager torch callback

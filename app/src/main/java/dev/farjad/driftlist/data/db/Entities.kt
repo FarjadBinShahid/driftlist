@@ -216,3 +216,33 @@ data class UsageSessionEntity(
     @ColumnInfo(name = "last_reminder_minute") val lastReminderMinute: Int = 0,
     @ColumnInfo(name = "ended_at") val endedAt: Long? = null,
 )
+
+/** Apps whose notifications are held for the next summary (S31). '*silent*' = every silent notification. */
+@Entity(tableName = "summary_rule", primaryKeys = ["package_name", "user_serial"])
+data class SummaryRuleEntity(
+    @ColumnInfo(name = "package_name") val packageName: String,
+    @ColumnInfo(name = "user_serial") val userSerial: Long,
+)
+
+@Entity(tableName = "notification_batch", indices = [Index(value = ["scheduled_for"])])
+data class NotificationBatchEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "scheduled_for") val scheduledFor: Long,
+    @ColumnInfo(name = "delivered_at") val deliveredAt: Long? = null,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)
+
+@Entity(
+    tableName = "batch_item",
+    primaryKeys = ["batch_id", "notification_key"],
+    foreignKeys = [ForeignKey(NotificationBatchEntity::class, ["id"], ["batch_id"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index(value = ["package_name"])],
+)
+data class BatchItemEntity(
+    @ColumnInfo(name = "batch_id") val batchId: String,
+    @ColumnInfo(name = "notification_key") val notificationKey: String,
+    @ColumnInfo(name = "package_name") val packageName: String,
+    val title: String?,
+    val body: String?,
+    @ColumnInfo(name = "posted_at") val postedAt: Long,
+)
