@@ -1,5 +1,13 @@
 package dev.farjad.driftlist.ui.home
 
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.TextButton
+import dev.farjad.driftlist.domain.ButtonTarget
+import dev.farjad.driftlist.ui.components.MusicAppsRow
+import dev.farjad.driftlist.ui.components.TorchRow
 import dev.farjad.driftlist.domain.SearchEngine
 import dev.farjad.driftlist.ui.components.MoveClockSheet
 import android.Manifest
@@ -121,7 +129,7 @@ private sealed interface Overlay {
     data object HeaderOptions : Overlay
     data object WidgetPicker : Overlay
     data object Search : Overlay
-    data object ButtonTarget : Overlay
+    data class ButtonTarget(val swipe: Boolean) : Overlay
     data object Recent : Overlay
     data object Agenda : Overlay
     data object MoveClock : Overlay
@@ -197,6 +205,15 @@ fun HomeScreen(
         }
     }
     val agendaOn = state.settings.calendarEvents && state.calendarAccess
+
+    /** Runs a round-button target; false when it's unset or gone (then the picker opens). */
+    fun runTarget(value: String?): Boolean = when (val t = dev.farjad.driftlist.domain.ButtonTarget.parse(value)) {
+        null -> false
+        is dev.farjad.driftlist.domain.ButtonTarget.App -> state.allApps.firstOrNull { it.id == t.appId }?.let { vm.launch(it, null); true } ?: false
+        is dev.farjad.driftlist.domain.ButtonTarget.Folder -> state.favorites.filterIsInstance<HomeEntry.Folder>()
+            .firstOrNull { it.folder.id == t.folderId }?.let { overlay = Overlay.Folder(it); true } ?: false
+        is dev.farjad.driftlist.domain.ButtonTarget.Shortcut -> { vm.launchButtonShortcut(t, null); true }
+    }
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) vm.setFlag("search_contacts", false)
         // Reopen search so it picks up the new permission.
@@ -321,18 +338,9 @@ fun HomeScreen(
                         onDateClick = { if (agendaOn) overlay = Overlay.Agenda else SystemActions.openCalendar(context) },
                         onWidgetPage = { widgetPage = it },
                         onSuggestionRow = { app -> appRow(app, AppRowVariant.Favorite) },
-                        onButtonClick = {
-                            val target = state.settings.buttonTarget
-                            when {
-                                target == null -> overlay = Overlay.ButtonTarget
-                                target.startsWith("app:") -> state.allApps.firstOrNull { it.id == target.removePrefix("app:") }
-                                    ?.let { vm.launch(it, null) } ?: run { overlay = Overlay.ButtonTarget }
-                                else -> state.favorites.filterIsInstance<HomeEntry.Folder>()
-                                    .firstOrNull { it.folder.id == target.removePrefix("folder:") }
-                                    ?.let { overlay = Overlay.Folder(it) } ?: run { overlay = Overlay.ButtonTarget }
-                            }
-                        },
-                        onButtonLongClick = { overlay = Overlay.ButtonTarget },
+                        onButtonClick = { if (!runTarget(state.settings.buttonTarget)) overlay = Overlay.ButtonTarget(swipe = false) },
+                        onButtonLongClick = { overlay = Overlay.ButtonTarget(swipe = false) },
+                        onButtonSwipe = { if (!runTarget(state.settings.buttonSwipeTarget)) overlay = Overlay.ButtonTarget(swipe = true) },
                         onSearch = { if (state.settings.swipeUpSearch) overlay = Overlay.Search },
                         onAskDefault = askToBeDefault,
                         onAskNotifications = {
@@ -483,6 +491,8 @@ fun HomeScreen(
             onClose = close,
             calendarOn = agendaOn,
             onToggleCalendar = toggleCalendar,
+            clockReplaced = state.settings.replaceClock,
+            onToggleReplaceClock = { vm.setFlag("replace_clock", !state.settings.replaceClock) },
             onMoveClock = { overlay = Overlay.MoveClock },
         )
         Overlay.MoveClock -> MoveClockSheet(
@@ -517,12 +527,15 @@ fun HomeScreen(
                 onClose = close,
             )
         }
-        Overlay.ButtonTarget -> ButtonTargetSheet(
+        is Overlay.ButtonTarget -> ButtonTargetSheet(
             apps = state.allApps.filterNot { it.hidden },
             folders = state.favorites.filterIsInstance<HomeEntry.Folder>().map { it.folder.id to it.folder.title },
             icons = vm.icons,
-            onPick = { target -> close(); vm.setButtonTarget(target) },
+            onPick = { target -> close(); vm.setButtonTarget(target, swipe = o.swipe) },
             onClose = close,
+            shortcutsFor = vm::shortcutsFor,
+            swipe = o.swipe,
+            onSwitchMode = { swipe -> overlay = Overlay.ButtonTarget(swipe) },
         )
         Overlay.Recent -> RecentlyInstalledSheet(
             apps = state.recentlyInstalled,
@@ -569,6 +582,7 @@ private fun FavoritesPane(
     onSuggestionRow: @Composable (AppEntity) -> Unit,
     onButtonClick: () -> Unit,
     onButtonLongClick: () -> Unit,
+    onButtonSwipe: () -> Unit,
     onSearch: () -> Unit,
     onAskDefault: () -> Unit,
     onAskNotifications: () -> Unit,
@@ -606,19 +620,35 @@ private fun FavoritesPane(
                 }
             },
     ) {
+        // Landscape and wide screens (foldables, tablets): header on the left, favorites on the right.
+        val wide = maxWidth > maxHeight || maxWidth >= WIDE_LAYOUT_MIN
         val topSpace = maxHeight * state.settings.headerPosition
-        Column(Modifier.fillMaxSize().padding(start = if (state.settings.leftHanded) SpaceTokens.s3 else SizeTokens.edgeGutter, end = if (state.settings.leftHanded) SpaceTokens.s5 else 0.dp)) {
-            Spacer(Modifier.height(topSpace))
-            ClockHeader(
-                onClockClick = { SystemActions.openClock(context) },
-                onDateClick = onDateClick,
-                onLongClick = onHeaderLongClick,
-                upcoming = state.agenda,
-                dateOpensAgenda = state.settings.calendarEvents && state.calendarAccess,
-            )
+        val wideTopSpace = topSpace.coerceAtMost(maxHeight * WIDE_TOP_MAX)
+        val startPad = if (state.settings.leftHanded) SpaceTokens.s3 else SizeTokens.edgeGutter
+        val endPad = if (state.settings.leftHanded) SpaceTokens.s5 else 0.dp
+        val showClock = !(state.settings.replaceClock && state.headerWidgets.isNotEmpty())
+
+        val header: @Composable ColumnScope.() -> Unit = {
+            if (showClock) {
+                ClockHeader(
+                    onClockClick = { SystemActions.openClock(context) },
+                    onDateClick = onDateClick,
+                    onLongClick = onHeaderLongClick,
+                    upcoming = state.agenda,
+                    dateOpensAgenda = state.settings.calendarEvents && state.calendarAccess,
+                )
+            }
             if (state.headerWidgets.isNotEmpty()) {
-                Spacer(Modifier.height(SpaceTokens.s4))
+                if (showClock) Spacer(Modifier.height(SpaceTokens.s4))
                 WidgetStack(state.headerWidgets, vm.widgetHost, Modifier.padding(end = SpaceTokens.s3), onPage = onWidgetPage)
+                if (!showClock) {
+                    // The clock's long-press is gone; keep a way into the header options.
+                    TextButton(onClick = onHeaderLongClick) { Text("Header options") }
+                }
+            }
+            if (state.torchOn) {
+                Spacer(Modifier.height(SpaceTokens.s4))
+                TorchRow(onTurnOff = vm::torchOff, modifier = Modifier.padding(end = SpaceTokens.s3))
             }
             val media = state.media
             if (state.settings.mediaCard && media != null) {
@@ -631,6 +661,10 @@ private fun FavoritesPane(
                     onPrevious = vm::mediaPrevious,
                     modifier = Modifier.padding(end = SpaceTokens.s3),
                 )
+            }
+            if (state.musicApps.isNotEmpty() && media?.playing != true) {
+                Spacer(Modifier.height(SpaceTokens.s4))
+                MusicAppsRow(state.musicApps, vm.icons, onLaunch = { vm.launch(it, null) })
             }
             if (state.loaded && !state.setup.isDefaultLauncher) {
                 Spacer(Modifier.height(SpaceTokens.s5))
@@ -652,16 +686,18 @@ private fun FavoritesPane(
                     modifier = Modifier.padding(end = SpaceTokens.s3),
                 )
             }
-            if (!state.settings.favoritesAtBottom) Spacer(Modifier.height(SpaceTokens.s4))
+        }
+
+        val favorites: @Composable (Modifier, Boolean) -> Unit = { modifier, bottom ->
             LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                verticalArrangement = if (state.settings.favoritesAtBottom) Arrangement.Bottom else Arrangement.Top,
+                modifier = modifier.fillMaxWidth(),
+                verticalArrangement = if (bottom) Arrangement.Bottom else Arrangement.Top,
                 contentPadding = PaddingValues(bottom = SpaceTokens.s7),
             ) {
                 if (state.loaded && state.favorites.isEmpty()) {
                     item {
                         Text(
-                            "Slide along the letters on the right to find an app, then long-press it to pin it here.",
+                            "Slide along the letters to find an app, then long-press it to pin it here.",
                             style = TypeTokens.body.onWallpaper(colors, colors.textMuted),
                             modifier = Modifier.padding(end = SpaceTokens.s7, bottom = SpaceTokens.s5),
                         )
@@ -695,16 +731,48 @@ private fun FavoritesPane(
                 }
             }
         }
+
+        if (wide) {
+            Row(Modifier.fillMaxSize().padding(start = startPad, end = endPad)) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .verticalScroll(rememberScrollState())
+                        .padding(end = SpaceTokens.s7),
+                ) {
+                    Spacer(Modifier.height(wideTopSpace))
+                    header()
+                }
+                favorites(Modifier.weight(1f).fillMaxHeight().padding(top = SpaceTokens.s7), true)
+            }
+        } else {
+            Column(Modifier.fillMaxSize().padding(start = startPad, end = endPad)) {
+                Spacer(Modifier.height(topSpace))
+                header()
+                if (!state.settings.favoritesAtBottom) Spacer(Modifier.height(SpaceTokens.s4))
+                favorites(Modifier.weight(1f), state.settings.favoritesAtBottom)
+            }
+        }
+
         if (state.settings.buttonEnabled) {
-            val target = state.settings.buttonTarget
+            val tap = ButtonTarget.parse(state.settings.buttonTarget)
+            val swipeTarget = ButtonTarget.parse(state.settings.buttonSwipeTarget)
             ActionButton(
-                app = target?.takeIf { it.startsWith("app:") }?.let { t -> state.allApps.firstOrNull { it.id == t.removePrefix("app:") } },
-                folderTitle = target?.takeIf { it.startsWith("folder:") }?.let { t ->
-                    state.favorites.filterIsInstance<HomeEntry.Folder>().firstOrNull { it.folder.id == t.removePrefix("folder:") }?.folder?.title
+                app = when (tap) {
+                    is ButtonTarget.App -> state.allApps.firstOrNull { it.id == tap.appId }
+                    is ButtonTarget.Shortcut -> state.allApps.firstOrNull { it.packageName == tap.packageName && it.userSerial == tap.userSerial }
+                    else -> null
                 },
+                folderTitle = (tap as? ButtonTarget.Folder)?.let { t ->
+                    state.favorites.filterIsInstance<HomeEntry.Folder>().firstOrNull { it.folder.id == t.folderId }?.folder?.title
+                },
+                shortcutLabel = (tap as? ButtonTarget.Shortcut)?.label,
                 icons = vm.icons,
                 onClick = onButtonClick,
                 onLongClick = onButtonLongClick,
+                swipeLabel = targetLabel(swipeTarget, state),
+                onSwipeUp = if (swipeTarget != null) onButtonSwipe else null,
                 modifier = Modifier
                     .align(if (state.settings.leftHanded) Alignment.BottomStart else Alignment.BottomEnd)
                     .padding(SpaceTokens.s5),
@@ -712,6 +780,17 @@ private fun FavoritesPane(
         }
     }
 }
+
+/** Spoken name of a round-button target. */
+private fun targetLabel(target: ButtonTarget?, state: HomeUiState): String? = when (target) {
+    null -> null
+    is ButtonTarget.App -> state.allApps.firstOrNull { it.id == target.appId }?.label
+    is ButtonTarget.Folder -> state.favorites.filterIsInstance<HomeEntry.Folder>().firstOrNull { it.folder.id == target.folderId }?.folder?.title
+    is ButtonTarget.Shortcut -> target.label
+}
+
+private val WIDE_LAYOUT_MIN = 600.dp
+private const val WIDE_TOP_MAX = 0.12f
 
 @Composable
 private fun AppListPane(

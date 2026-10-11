@@ -1,5 +1,7 @@
 package dev.farjad.driftlist
 
+import dev.farjad.driftlist.system.HeadphoneWatcher
+import dev.farjad.driftlist.system.TorchWatcher
 import dev.farjad.driftlist.system.search.ContactSearch
 import dev.farjad.driftlist.system.WallpaperWatcher
 import dev.farjad.driftlist.system.calendar.CalendarSource
@@ -43,6 +45,8 @@ class AppContainer(context: Context) {
     val calendar = CalendarSource(context)
     val wallpaper = WallpaperWatcher(context)
     val contacts = ContactSearch(context)
+    val torch = TorchWatcher(context)
+    val headphones = HeadphoneWatcher(context)
     val summary = NotificationSummary(context, db, scope)
     val backup = Backup(db, settings)
 }
@@ -58,6 +62,8 @@ class DriftlistApp : Application() {
         c.catalog.onSynced = c.icons::onCatalogSynced
         c.catalog.start()
         c.wallpaper.start()
+        c.torch.start()
+        c.headphones.start()
         c.usageBreaker.start()
         c.summary.start()
         c.notifications.interceptor = c.summary::intercept

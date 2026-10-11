@@ -53,6 +53,12 @@ data class SettingsSnapshot(
     val quickReplies: Boolean = true,
     val allowRotation: Boolean = false,
     val hideStatusBar: Boolean = false,
+    /** What swiping up on the round button opens; same format as [buttonTarget]. */
+    val buttonSwipeTarget: String? = null,
+    val plugAndPlay: Boolean = true,
+    val torchReminder: Boolean = true,
+    /** Show the header widget(s) in place of the clock. */
+    val replaceClock: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -82,6 +88,10 @@ class Settings(private val context: Context) {
         val quickReplies = booleanPreferencesKey("quick_replies")
         val allowRotation = booleanPreferencesKey("allow_rotation")
         val hideStatusBar = booleanPreferencesKey("hide_status_bar")
+        val buttonSwipeTarget = stringPreferencesKey("button_swipe_target")
+        val plugAndPlay = booleanPreferencesKey("plug_and_play")
+        val torchReminder = booleanPreferencesKey("torch_reminder")
+        val replaceClock = booleanPreferencesKey("replace_clock")
     }
 
     private val booleanKeys = mapOf(
@@ -104,6 +114,9 @@ class Settings(private val context: Context) {
         "quick_replies" to Keys.quickReplies,
         "allow_rotation" to Keys.allowRotation,
         "hide_status_bar" to Keys.hideStatusBar,
+        "plug_and_play" to Keys.plugAndPlay,
+        "torch_reminder" to Keys.torchReminder,
+        "replace_clock" to Keys.replaceClock,
     )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -134,6 +147,10 @@ class Settings(private val context: Context) {
             quickReplies = p[Keys.quickReplies] ?: true,
             allowRotation = p[Keys.allowRotation] ?: false,
             hideStatusBar = p[Keys.hideStatusBar] ?: false,
+            buttonSwipeTarget = p[Keys.buttonSwipeTarget],
+            plugAndPlay = p[Keys.plugAndPlay] ?: true,
+            torchReminder = p[Keys.torchReminder] ?: true,
+            replaceClock = p[Keys.replaceClock] ?: false,
         )
     }
 
@@ -171,6 +188,10 @@ class Settings(private val context: Context) {
         if (target == null) it.remove(Keys.buttonTarget) else it[Keys.buttonTarget] = target
     }
 
+    suspend fun setButtonSwipeTarget(target: String?) = context.dataStore.edit {
+        if (target == null) it.remove(Keys.buttonSwipeTarget) else it[Keys.buttonSwipeTarget] = target
+    }
+
     /** For backup/restore. */
     suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap()
         .mapKeys { it.key.name }
@@ -183,6 +204,7 @@ class Settings(private val context: Context) {
         (values["button_target"] as? String)?.let { p[Keys.buttonTarget] = it }
         (values["look"] as? String)?.let { p[Keys.look] = it }
         (values["search_engine"] as? String)?.let { p[Keys.searchEngine] = it }
+        (values["button_swipe_target"] as? String)?.let { p[Keys.buttonSwipeTarget] = it }
         (values["header_position"] as? Number)?.let { p[Keys.headerPosition] = it.toFloat() }
     }
 }

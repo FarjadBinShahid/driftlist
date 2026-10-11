@@ -424,6 +424,21 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
                 vm.setFlag("quick_replies", it)
             }
         }
+        item {
+            ToggleRow("Music when headphones connect", "Your music apps appear under the clock while headphones are plugged in", s.plugAndPlay) {
+                vm.setFlag("plug_and_play", it)
+            }
+        }
+        item {
+            ToggleRow("Flashlight reminder", "A row on home while the flashlight is on, with a button to turn it off", s.torchReminder) {
+                vm.setFlag("torch_reminder", it)
+            }
+        }
+        item {
+            ToggleRow("Widget instead of the clock", "Needs a widget under the clock first (long-press the clock)", s.replaceClock) {
+                vm.setFlag("replace_clock", it)
+            }
+        }
         item { SectionHeader("Display") }
         item {
             ToggleRow("Rotate with the phone", "Off: home stays upright. Tablets and foldables always rotate", s.allowRotation) {

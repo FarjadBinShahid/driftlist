@@ -1,5 +1,19 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.FlashlightOn
+import androidx.compose.ui.semantics.heading
+import dev.farjad.driftlist.ui.theme.onWallpaper
+import androidx.compose.material3.FilterChip
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import dev.farjad.driftlist.domain.ButtonTarget
+import dev.farjad.driftlist.system.apps.ShortcutInfoItem
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -172,19 +186,40 @@ fun ActionButton(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    shortcutLabel: String? = null,
+    swipeLabel: String? = null,
+    onSwipeUp: (() -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val label = when {
+        shortcutLabel != null -> "Open $shortcutLabel"
         app != null -> "Open ${app.label}"
         folderTitle != null -> "Open $folderTitle"
         else -> "Choose what this button opens"
     }
+    val swipe by rememberUpdatedState(onSwipeUp)
+    val swipePx = with(LocalDensity.current) { SizeTokens.actionButton.toPx() * 0.6f }
     Box(
         modifier = modifier
             .size(SizeTokens.actionButton)
             .shadow(ElevationTokens.pop, CircleShape)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.primaryContainer)
+            .pointerInput(Unit) {
+                var dy = 0f
+                detectVerticalDragGestures(
+                    onDragStart = { dy = 0f },
+                    onDragEnd = { if (dy < -swipePx) swipe?.invoke() },
+                ) { change, amount ->
+                    dy += amount
+                    change.consume()
+                }
+            }
+            .semantics {
+                if (onSwipeUp != null && swipeLabel != null) {
+                    customActions = listOf(CustomAccessibilityAction("Swipe up: $swipeLabel") { onSwipeUp(); true })
+                }
+            }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onLongClick() },
@@ -226,12 +261,22 @@ fun ButtonTargetSheet(
     icons: IconCache,
     onPick: (String?) -> Unit,
     onClose: () -> Unit,
+    shortcutsFor: (AppEntity) -> List<ShortcutInfoItem> = { emptyList() },
+    swipe: Boolean = false,
+    onSwitchMode: ((Boolean) -> Unit)? = null,
 ) {
+    var expanded by remember { mutableStateOf<String?>(null) }
     DriftSheet(onClose) {
         Column(Modifier.fillMaxHeight(0.9f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SheetTitle("Button opens", Modifier.weight(1f))
-                TextButton(onClick = { onPick(null) }, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text("Turn off") }
+                SheetTitle(if (swipe) "Swipe up opens" else "Tap opens", Modifier.weight(1f))
+                TextButton(onClick = { onPick(null) }, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text(if (swipe) "Nothing" else "Turn off") }
+            }
+            if (onSwitchMode != null) {
+                Row(Modifier.padding(horizontal = SpaceTokens.s7), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3)) {
+                    FilterChip(selected = !swipe, onClick = { onSwitchMode(false) }, label = { Text("Tap") })
+                    FilterChip(selected = swipe, onClick = { onSwitchMode(true) }, label = { Text("Swipe up") })
+                }
             }
             LazyColumn(Modifier.weight(1f)) {
                 if (folders.isNotEmpty()) {
@@ -241,7 +286,28 @@ fun ButtonTargetSheet(
                     item { HorizontalDivider(Modifier.padding(vertical = SpaceTokens.s2)) }
                 }
                 items(apps.sortedBy { it.label.lowercase() }, key = { it.id }) { app ->
-                    SheetAppRow(app, icons, onClick = { onPick("app:${app.id}") })
+                    Column {
+                        SheetAppRow(app, icons, onClick = { onPick("app:${app.id}") }) {
+                            TextButton(onClick = { expanded = if (expanded == app.id) null else app.id }) {
+                                Text(if (expanded == app.id) "Hide shortcuts" else "Shortcuts")
+                            }
+                        }
+                        if (expanded == app.id) {
+                            val shortcuts = remember(app.id) { shortcutsFor(app) }
+                            if (shortcuts.isEmpty()) {
+                                Text(
+                                    "No shortcuts for this app.",
+                                    style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                                    modifier = Modifier.padding(start = SpaceTokens.s11, bottom = SpaceTokens.s3),
+                                )
+                            }
+                            shortcuts.forEach { sc ->
+                                OptionRow(sc.label, {
+                                    onPick(ButtonTarget.Shortcut(app.userSerial, app.packageName, sc.id, sc.label).encode())
+                                }, supporting = app.label)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -271,4 +337,49 @@ fun RecentlyInstalledSheet(apps: List<AppEntity>, icons: IconCache, onLaunch: (A
 @Composable
 fun AppIconPlaceholder(color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
     Box(modifier.size(SizeTokens.iconPopup).clip(CircleShape).background(color))
+}
+
+/** Shown while the flashlight is on, so it isn't left burning in a pocket. */
+@Composable
+fun TorchRow(onTurnOff: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
+        shape = RoundedCornerShape(RadiusTokens.lg),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(start = SpaceTokens.s5, end = SpaceTokens.s3).heightIn(min = SizeTokens.touchMin),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+        ) {
+            Icon(Icons.Outlined.FlashlightOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Text("Flashlight is on", style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurface), modifier = Modifier.weight(1f))
+            TextButton(onClick = onTurnOff) { Text("Turn off") }
+        }
+    }
+}
+
+/** Plug and Play: music apps, offered while headphones are connected. */
+@Composable
+fun MusicAppsRow(apps: List<AppEntity>, icons: IconCache, onLaunch: (AppEntity) -> Unit, modifier: Modifier = Modifier) {
+    val colors = LocalHomeColors.current
+    Column(modifier) {
+        Text(
+            "Headphones connected",
+            style = TypeTokens.caption.onWallpaper(colors, colors.textMuted),
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(Modifier.padding(top = SpaceTokens.s2), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4)) {
+            apps.forEach { app ->
+                Box(
+                    Modifier
+                        .size(SizeTokens.touchMin + SpaceTokens.s3)
+                        .clip(CircleShape)
+                        .clickable(onClickLabel = "Open ${app.label}") { onLaunch(app) }
+                        .semantics { contentDescription = app.label },
+                    contentAlignment = Alignment.Center,
+                ) { AppIcon(app.id, icons, SizeTokens.iconFavorite) }
+            }
+        }
+    }
 }

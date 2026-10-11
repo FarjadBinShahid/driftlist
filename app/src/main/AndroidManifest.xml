@@ -23,6 +23,14 @@
 
     <!-- Package visibility (Android 11+): every launchable app, icon packs, web search. -->
     <queries>
+        <!-- Plug and Play: apps that play music. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_MUSIC" />
+        </intent>
+        <intent>
+            <action android:name="android.media.browse.MediaBrowserService" />
+        </intent>
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />

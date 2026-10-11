@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.Slider
@@ -504,6 +505,8 @@ fun HeaderOptionsSheet(
     calendarOn: Boolean = false,
     onToggleCalendar: () -> Unit = {},
     onMoveClock: () -> Unit = {},
+    clockReplaced: Boolean = false,
+    onToggleReplaceClock: () -> Unit = {},
 ) {
     DriftSheet(onClose) {
         SheetTitle("Home screen")
@@ -523,6 +526,13 @@ fun HeaderOptionsSheet(
             )
         }
         if (widgetCount > 0) {
+            CardRow(
+                "Widget instead of the clock",
+                Icons.Outlined.SwapVert,
+                onToggleReplaceClock,
+                supporting = "Hide the clock and date; show your widget at the top",
+                trailing = { Switch(checked = clockReplaced, onCheckedChange = null) },
+            )
             CardRow(
                 if (widgetCount == 1) "Remove widget" else "Remove the widget you're looking at",
                 Icons.Outlined.Delete,

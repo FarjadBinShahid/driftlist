@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.home
 
+import dev.farjad.driftlist.domain.ButtonTarget
 import android.app.SearchManager
 import android.net.Uri
 import android.os.Build
@@ -100,6 +101,9 @@ data class HomeUiState(
     /** Calendar occurrences from yesterday to a week ahead; empty when the calendar is off. */
     val agenda: List<CalEvent> = emptyList(),
     val calendarAccess: Boolean = false,
+    val torchOn: Boolean = false,
+    /** Music apps to offer while headphones are connected (Plug and Play). */
+    val musicApps: List<AppEntity> = emptyList(),
 ) {
     val headerWidget: WidgetEntity? get() = headerWidgets.firstOrNull()
 }
@@ -187,7 +191,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         container.media.state,
         agendaFlow(),
         container.calendar.access,
-    ) { s, media, agenda, calendarAccess -> s.copy(media = media, agenda = agenda, calendarAccess = calendarAccess) }
+        combine(container.torch.on, container.headphones.connected) { torch, phones -> torch to phones },
+    ) { s, media, agenda, calendarAccess, (torch, phones) ->
+        s.copy(
+            media = media,
+            agenda = agenda,
+            calendarAccess = calendarAccess,
+            torchOn = torch && s.settings.torchReminder,
+            musicApps = if (!phones || !s.settings.plugAndPlay) emptyList() else musicAppsFrom(s.allApps),
+        )
+    }
         .stateIn(viewModelScope, SharingStarted.Eagerly, HomeUiState(loaded = false))
 
     /** When an app was last opened from the A-Z list; Home within a few seconds returns there. */
@@ -263,11 +276,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { container.settings.setFlag(name, value) }
     }
 
-    fun setButtonTarget(target: String?) {
+    fun setButtonTarget(target: String?, swipe: Boolean = false) {
         viewModelScope.launch {
-            container.settings.setButtonTarget(target)
-            container.settings.setFlag("button_enabled", target != null)
+            if (swipe) {
+                container.settings.setButtonSwipeTarget(target)
+            } else {
+                container.settings.setButtonTarget(target)
+                container.settings.setFlag("button_enabled", target != null)
+            }
+            repinShortcuts()
         }
+    }
+
+    fun launchButtonShortcut(t: ButtonTarget.Shortcut, bounds: Rect?) =
+        container.catalog.launchStoredShortcut(t.packageName, t.shortcutId, t.userSerial, bounds)
+
+    fun torchOff() = container.torch.turnOff()
+
+    private var musicPackages: Set<String>? = null
+
+    private fun musicAppsFrom(apps: List<AppEntity>): List<AppEntity> {
+        val pkgs = musicPackages ?: container.headphones.musicPackages().also { musicPackages = it }
+        return apps.filter { !it.hidden && it.packageName in pkgs }
+            .sortedWith(compareByDescending<AppEntity> { it.launchCount }.thenBy { it.label.lowercase() })
+            .distinctBy { it.packageName }
+            .take(MAX_MUSIC_APPS)
     }
 
     fun mediaPlayPause() = container.media.playPause()
@@ -380,9 +413,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             ?.let { runCatching { it.toBitmap(sizePx, sizePx).asImageBitmap() }.getOrNull() }
     }
 
+    /** Pins every shortcut Driftlist uses (folders and the round button); pinning replaces per package. */
     private suspend fun repinShortcuts() {
-        val all = db.shortcutDao().all()
-        container.catalog.pinShortcuts(all.groupBy({ it.packageName to it.userSerial }, { it.shortcutId }))
+        val stored = db.shortcutDao().all().map { (it.packageName to it.userSerial) to it.shortcutId }
+        val s = container.settings.current()
+        val button = listOf(s.buttonTarget, s.buttonSwipeTarget).mapNotNull { ButtonTarget.parse(it) as? ButtonTarget.Shortcut }
+            .map { (it.packageName to it.userSerial) to it.shortcutId }
+        container.catalog.pinShortcuts((stored + button).groupBy({ it.first }, { it.second }).mapValues { (_, ids) -> ids.distinct() })
     }
 
     fun updateFolder(folderId: String, title: String, appIds: List<String>) {
@@ -478,6 +515,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val MAX_SUGGESTIONS = 3
+        const val MAX_MUSIC_APPS = 4
         const val RECENT_WINDOW_MS = 14L * 24 * 60 * 60 * 1000
     }
 

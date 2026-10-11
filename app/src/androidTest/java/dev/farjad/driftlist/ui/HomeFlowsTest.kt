@@ -119,6 +119,26 @@ class HomeFlowsTest {
         }
     }
 
+    // BUG-011 / F03-E7: in landscape the header moves beside the favorites, so the last one stays on screen
+    @Test
+    fun landscapeKeepsEveryFavoriteOnScreen() {
+        TestState.reset(favorites = listOf("Calendar", "Camera", "Chrome", "Clock", "Contacts", "Files")) { c ->
+            c.settings.setFlag("allow_rotation", true)
+        }
+        val ui = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().uiAutomation
+        try {
+            ui.setRotation(android.app.UiAutomation.ROTATION_FREEZE_90)
+            home {
+                waitForText("Files")
+                onNodeWithText("Files").assertIsDisplayed()
+            }
+        } finally {
+            ui.setRotation(android.app.UiAutomation.ROTATION_FREEZE_0)
+            ui.setRotation(android.app.UiAutomation.ROTATION_UNFREEZE)
+            runBlocking { TestState.container.settings.setFlag("allow_rotation", false) }
+        }
+    }
+
     // F04-H4: the calculator answers sums typed into search
     @Test
     fun searchDoesSums() {

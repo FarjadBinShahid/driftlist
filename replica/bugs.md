@@ -14,7 +14,7 @@ Device for all bugs: emulator Medium_Phone_API_37.0 (Android 17, 1080×2400). Ev
 | BUG-008 | S4 | Date under the clock was a 45 dp target | fixed in 325ce6d |
 | BUG-009 | S3 | Change-icon button in the options sheet had no label | fixed in 325ce6d |
 | BUG-010 | S4 | "On for 1 apps" | fixed in 03e1585 |
-| BUG-011 | S4 | Landscape: last favorite starts below the fold | open (M3 layout pass) |
+| BUG-011 | S4 | Landscape: last favorite starts below the fold | fixed in M4 batch 2 (side-by-side layout; test landscapeKeepsEveryFavoriteOnScreen) |
 
 Open S1: **none**. Open S2: **none**.
 
