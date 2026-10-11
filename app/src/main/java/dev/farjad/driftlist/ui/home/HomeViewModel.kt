@@ -209,6 +209,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         .flowOn(Dispatchers.IO)
 
+    fun setHeaderPosition(ratio: Float) {
+        viewModelScope.launch { container.settings.setHeaderPosition(ratio) }
+    }
+
     fun openEvent(event: CalEvent) = container.calendar.open(event)
     fun newCalendarEvent() = container.calendar.newEvent()
 

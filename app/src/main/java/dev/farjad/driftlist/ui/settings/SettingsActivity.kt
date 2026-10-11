@@ -1,5 +1,14 @@
 package dev.farjad.driftlist.ui.settings
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.SideEffect
+import androidx.core.view.WindowCompat
+import dev.farjad.driftlist.data.ThemeMode
+import androidx.compose.material3.Slider
+import androidx.compose.ui.semantics.contentDescription
+import dev.farjad.driftlist.data.Look
+import dev.farjad.driftlist.data.db.ThemeEntity
+import dev.farjad.driftlist.system.FontStore
 import android.Manifest
 import android.app.Application
 import android.app.role.RoleManager
@@ -102,6 +111,8 @@ data class SettingsUiState(
     val apps: List<AppEntity> = emptyList(),
     val usageRules: Set<String> = emptySet(),
     val summaryRules: Set<String> = emptySet(),
+    val themes: List<ThemeEntity> = emptyList(),
+    val wallpaperSeed: Int? = null,
 )
 
 class SettingsViewModel(application: Application) : AndroidViewModel(application) {
@@ -109,18 +120,22 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     val icons = c.icons
 
     val state: StateFlow<SettingsUiState> = combine(
-        c.settings.flow,
-        c.db.appDao().observeAll(),
-        c.db.usageDao().observeRules(),
-        c.db.summaryDao().observeRules(),
-    ) { s, apps, rules, summary ->
-        SettingsUiState(
-            s,
-            apps.sortedBy { it.label.lowercase() },
-            rules.mapTo(HashSet()) { it.packageName },
-            summary.mapTo(HashSet()) { it.packageName },
-        )
-    }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
+        combine(
+            c.settings.flow,
+            c.db.appDao().observeAll(),
+            c.db.usageDao().observeRules(),
+            c.db.summaryDao().observeRules(),
+        ) { s, apps, rules, summary ->
+            SettingsUiState(
+                s,
+                apps.sortedBy { it.label.lowercase() },
+                rules.mapTo(HashSet()) { it.packageName },
+                summary.mapTo(HashSet()) { it.packageName },
+            )
+        },
+        c.db.themeDao().observeAll(),
+        c.wallpaper.state,
+    ) { s, themes, wallpaper -> s.copy(themes = themes, wallpaperSeed = wallpaper.seed) }.stateIn(viewModelScope, SharingStarted.Eagerly, SettingsUiState())
 
     fun iconPacks(): List<IconPack> = c.iconPacks.installed()
     fun setIconPack(pkg: String?) = viewModelScope.launch { c.settings.setIconPack(pkg) }
@@ -147,6 +162,34 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         c.db.summaryDao().setRules(next.map { pkg -> SummaryRuleEntity(pkg, serials[pkg] ?: app.userSerial) })
     }
 
+    // --- look and themes ---
+    fun setLook(look: Look) = viewModelScope.launch { c.settings.setLook(look) }
+    fun setHeaderPosition(ratio: Float) = viewModelScope.launch { c.settings.setHeaderPosition(ratio) }
+    fun importedFonts(): List<String> = FontStore.imported(getApplication())
+    suspend fun importFont(context: Context, uri: Uri): Result<String> = withContext(Dispatchers.IO) { FontStore.import(context, uri) }
+    fun deleteFont(context: Context, id: String) = FontStore.delete(context, id)
+
+    fun saveTheme(name: String) = viewModelScope.launch {
+        val now = System.currentTimeMillis()
+        val s = state.value.settings
+        c.db.themeDao().upsert(
+            ThemeEntity(java.util.UUID.randomUUID().toString(), name, s.look.toJson(), s.iconPack ?: ThemeEntity.ICONS_SYSTEM, now, now),
+        )
+    }
+
+    /** Applies a saved theme: its look, and its icon pack if that pack is still installed. */
+    fun applyTheme(theme: ThemeEntity) = viewModelScope.launch {
+        c.settings.setLook(Look.fromJson(theme.look))
+        when (val pack = theme.iconPack) {
+            null -> Unit
+            ThemeEntity.ICONS_SYSTEM -> c.settings.setIconPack(null)
+            else -> if (iconPacks().any { it.packageName == pack }) c.settings.setIconPack(pack)
+        }
+    }
+
+    fun renameTheme(theme: ThemeEntity, name: String) = viewModelScope.launch { c.db.themeDao().rename(theme.id, name, System.currentTimeMillis()) }
+    fun deleteTheme(theme: ThemeEntity) = viewModelScope.launch { c.db.themeDao().delete(theme.id) }
+
     fun hasQuickLock() = QuickLockService.isEnabled(getApplication())
     fun hasCalendarAccess() = c.calendar.hasPermission().also { c.calendar.refreshAccess() }
     fun calendars() = c.calendar.calendars()
@@ -165,7 +208,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
-private enum class Page(val title: String, val parent: Page? = null) {
+internal enum class Page(val title: String, val parent: Page? = null) {
     Root("Settings"),
     Home("Home screen", Root),
     Gestures("Gestures and search", Root),
@@ -176,6 +219,8 @@ private enum class Page(val title: String, val parent: Page? = null) {
     HiddenApps("Hidden apps", Home),
     Calendars("Calendars", Home),
     IconPack("Icon pack", Look),
+    Studio("Theme Studio", Look),
+    MyThemes("My themes", Look),
     TimeChecks("Time checks", Wellbeing),
     Summary("Notification Summary", Wellbeing),
 }
@@ -187,7 +232,22 @@ class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        setContent { DriftlistTheme { SettingsScreen(vm, onExit = ::finish) } }
+        setContent {
+            val state by vm.state.collectAsStateWithLifecycle()
+            val dark = when (state.settings.look.mode) {
+                ThemeMode.Auto -> isSystemInDarkTheme()
+                ThemeMode.Light -> false
+                ThemeMode.Dark -> true
+            }
+            // Status and navigation bar icons follow the theme's light/dark, not the system's.
+            SideEffect {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+            }
+            DriftlistTheme(state.settings.look, state.wallpaperSeed) { SettingsScreen(vm, onExit = ::finish) }
+        }
     }
 }
 
@@ -217,7 +277,9 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
             Page.Root -> RootPage(vm, state, padding, onNavigate = { page = it })
             Page.Home -> HomePage(vm, state, padding, onNavigate = { page = it })
             Page.Gestures -> GesturesPage(vm, state, padding)
-            Page.Look -> LookPage(vm, state, padding, onNavigate = { page = it })
+            Page.Look -> LookHubPage(vm, state, padding, onNavigate = { page = it })
+            Page.Studio -> ThemeStudioPage(vm, state, padding, snackbar)
+            Page.MyThemes -> MyThemesPage(vm, state, padding, snackbar)
             Page.Wellbeing -> WellbeingPage(state, padding, onNavigate = { page = it })
             Page.Backup -> BackupPage(vm, padding, snackbar)
             Page.About -> AboutPage(padding)
@@ -271,7 +333,7 @@ private fun RootPage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
         item { Spacer(Modifier.height(SpaceTokens.s3)) }
         item { CategoryRow("Home screen", "Favorites, calendar, suggestions, music, the round button", Icons.Outlined.Home) { onNavigate(Page.Home) } }
         item { CategoryRow("Gestures and search", "Swipes, Home button, Quick Lock, left-handed", Icons.Outlined.Gesture) { onNavigate(Page.Gestures) } }
-        item { CategoryRow("Look", packLabel ?: "System icons", Icons.Outlined.Palette) { onNavigate(Page.Look) } }
+        item { CategoryRow("Look", "Themes, Theme Studio, icon pack", Icons.Outlined.Palette) { onNavigate(Page.Look) } }
         item { CategoryRow("Wellbeing", "Time checks, Notification Summary", Icons.Outlined.SelfImprovement) { onNavigate(Page.Wellbeing) } }
         item { CategoryRow("Backup", "Save or restore your setup", Icons.Outlined.Backup) { onNavigate(Page.Backup) } }
         item { CategoryRow("About", "Driftlist ${BuildConfig.VERSION_NAME}", Icons.Outlined.Info) { onNavigate(Page.About) } }
@@ -344,6 +406,21 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
             }
         }
         item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
+        item { SectionHeader("Clock position") }
+        item {
+            Column(Modifier.padding(horizontal = SpaceTokens.s7)) {
+                Slider(
+                    value = s.headerPosition,
+                    onValueChange = { vm.setHeaderPosition(it) },
+                    valueRange = SizeTokens.headerPositionMin..SizeTokens.headerPositionMax,
+                    modifier = Modifier.semantics { contentDescription = "Clock position, top to lower down" },
+                )
+                Row {
+                    Text("Higher", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant), modifier = Modifier.weight(1f))
+                    Text("Lower", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
+                }
+            }
+        }
     }
     if (explainCalendar) {
         PermissionDialog(
@@ -429,16 +506,6 @@ private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding:
             },
             onDismiss = { explain = false },
         )
-    }
-}
-
-@Composable
-private fun LookPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
-    val packLabel = remember(state.settings.iconPack) {
-        state.settings.iconPack?.let { pkg -> vm.iconPacks().firstOrNull { it.packageName == pkg }?.label ?: pkg }
-    }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item { NavRow("Icon pack", packLabel ?: "System icons") { onNavigate(Page.IconPack) } }
     }
 }
 
@@ -664,7 +731,7 @@ private fun CategoryRow(title: String, value: String, icon: ImageVector, onClick
 }
 
 @Composable
-private fun SectionHeader(text: String) {
+internal fun SectionHeader(text: String) {
     Text(
         text,
         style = TypeTokens.label.style(MaterialTheme.colorScheme.primary),
@@ -675,7 +742,7 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun NavRow(title: String, value: String?, warning: Boolean = false, onClick: () -> Unit) {
+internal fun NavRow(title: String, value: String?, warning: Boolean = false, onClick: () -> Unit) {
     Column(
         Modifier
             .fillMaxWidth()
@@ -695,7 +762,7 @@ private fun NavRow(title: String, value: String?, warning: Boolean = false, onCl
 }
 
 @Composable
-private fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+internal fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -713,7 +780,7 @@ private fun ToggleRow(title: String, subtitle: String?, checked: Boolean, onChan
 }
 
 @Composable
-private fun ChoiceRow(title: String, selected: Boolean, onClick: () -> Unit) {
+internal fun ChoiceRow(title: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

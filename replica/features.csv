@@ -36,25 +36,25 @@ Option to exclude hidden apps from search,search,could,yes,yes,M2: setting
 Media player card on home (auto show / hide),home,should,yes,yes,"M3b: MediaSessionManager via the notification listener; play/pause/skip, tap opens the player; not tested with a real player on the emulator"
 Niagara-style action button (tap action),home,should,yes,yes,M3b: round button bottom corner; long-press picks the target (verified opening Camera)
 Action button: folder / shortcut / swipe-up second action,home,could,yes,partial,M3b: opens an app or a favorites folder; no shortcut target or swipe-up second action
-Move clock/header position slider,home,should,yes,no,free; help 156
+Move clock/header position slider,home,should,yes,yes,"M3b: header sheet > Move clock (live, with Reset) and Settings > Home screen > Clock position"
 Settings screen with sections,settings,must,yes,yes,"M3b: root with six sub-pages (Home screen, Gestures and search, Look, Wellbeing, Backup, About); setup rows only while something is missing"
 Left-hand mode (left edge scroller),accessibility,should,yes,yes,"M3b: strip, wave, bubble and the round buttons mirror to the left (verified on emulator)"
 Light / dark mode,theming,must,yes,yes,M2: sheets and settings follow the system theme; home follows the wallpaper (verified in test pass P-3)
-Wallpaper-derived colour palette (Material You backport),theming,should,yes,no,free; Material Color Utilities; help 133
-Accent colour override,theming,could,yes,no,free; Edit Current Theme
+Wallpaper-derived colour palette (Material You backport),theming,should,yes,yes,"M3b: accent from the wallpaper's main colour (API 27+), follows wallpaper changes; own palette code keeps every pair at WCAG AA (unit-tested across 12 seeds)"
+Accent colour override,theming,could,yes,yes,M3b: 8 accent presets or From wallpaper in Theme Studio
 Wallpaper blur,theming,could,yes,no,free; help 64
 Built-in wallpaper picker (home / lock / both),theming,could,yes,no,free; own wallpapers only
-Font size scaling,theming,should,yes,partial,follows the system font size (verified at 1.5x); no in-app setting yet
-Ready-made themes (one-tap apply),theming,should,yes,no,pro (3 free); clone ships its own few themes
-Theme Studio editor with live preview,theming,should,yes,no,pro; S19; wallpaper + icons + clock + font + accent; autosave
-My Themes: save multiple and switch,theming,should,yes,no,pro
+Font size scaling,theming,should,yes,yes,"M3b: Theme Studio text size 85-130% for home text, on top of the system font size"
+Ready-made themes (one-tap apply),theming,should,yes,yes,"M3b: six of our own (Driftlist, Ink, Night shift, Terminal, Postcard, Quiet), all free"
+Theme Studio editor with live preview,theming,should,yes,partial,"M3b: live preview; clock, font, text size, accent, light/dark; changes autosave. Wallpaper is not part of a theme; icon pack is set on its own page (saved themes remember it)"
+My Themes: save multiple and switch,theming,should,yes,yes,"M3b: save from Theme Studio, apply, rename, delete; included in backups"
 Share theme as file / import theme file,theming,could,yes,no,pro import; own file format; size cap; no system font / external wallpaper
 Third-party icon pack support,icons,must,yes,yes,M2: verified with Arcticons Material You 15.3.2; uncovered apps keep their system icon
 Per-app icon override picker,icons,must,yes,yes,"M2: verified; suggestions first, search by icon name"
 Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,partial,M2: picker lists name-matched icons first; no learning
 Icon Assistant: auto-restore per-pack choices,icons,should,yes,yes,M2: verified switching to system icons and back
-Custom fonts (bundled + import .ttf/.otf),theming,should,yes,no,pro; help 79; ship OFL fonts
-Clock styles,theming,should,yes,no,pro; design own styles
+Custom fonts (bundled + import .ttf/.otf),theming,should,yes,yes,"M3b: nine font families already on every Android phone, plus .ttf/.otf import (checked, 8 MB cap). No downloaded font files bundled"
+Clock styles,theming,should,yes,yes,"M3b: five of our own: Thin, Bold, Stacked, Compact, Mono"
 Replace clock with widget,widgets,could,yes,no,pro?; help 23
 Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + configure verified with the Clock widget
 Widget stacks (up to 4 / swipe to switch),widgets,should,yes,yes,M3b: pager with dots and accessibility next/previous; header sheet adds or removes the page you're on

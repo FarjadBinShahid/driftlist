@@ -65,6 +65,23 @@ Harder than expected: Notification Summary. Holding a notification means cancell
 
 Tests: 9 unit, 23 instrumented, all passing. Onboarding copy fixed: favorites now sit under the clock by default, not at the bottom.
 
+## Milestone 3b part 2 (2026-10-12): theming
+
+| ID | status | notes |
+| --- | --- | --- |
+| Wallpaper palette | done | WallpaperWatcher follows the wallpaper's colours (API 27+); `Palette` walks lightness until every pair passes AA (unit test, 12 seeds incl. yellow, white, black, grey) |
+| Accent presets | done | eight, plus From wallpaper |
+| Clock styles | done | Thin, Bold, Stacked, Compact, Mono; our own, type only |
+| Fonts | done | nine system families (nothing downloaded or bundled) plus .ttf/.otf import into app storage, checked and capped at 8 MB |
+| Text size | done | 85-130% for text on the wallpaper; sheets keep the system font so settings stay readable |
+| Light/dark override | done | sheets and settings; status bar icons follow it (bug found on the emulator: dark icons on dark settings, fixed) |
+| Ready-made themes (S18) | done | six, one tap |
+| Theme Studio (S19) | partial | live preview, autosave; wallpaper isn't part of a theme |
+| My themes | done | Room v4 `theme` table (migration test), in backups |
+| Move clock | done | header sheet slider updates home live; also in settings |
+
+Found on the emulator: the preview clipped its third sample row (now two). Tests: PaletteTest (3), LookTest (4), ThemeFlowsTest (2, accessibility checks on), Migration v3 to v4, Backup keeps themes and the look. Totals: 22 unit, 29 instrumented, all passing.
+
 ## Calendar (2026-10-12)
 
 | ID | status | notes |

@@ -1,5 +1,7 @@
 package dev.farjad.driftlist.data
 
+import androidx.datastore.preferences.core.floatPreferencesKey
+import dev.farjad.driftlist.ui.theme.SizeTokens
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -37,6 +39,10 @@ data class SettingsSnapshot(
     val calendarEvents: Boolean = false,
     /** Calendars left out of the header and agenda. Device-specific ids, so not part of backups. */
     val hiddenCalendars: Set<Long> = emptySet(),
+    /** Theme Studio's current look (clock, font, size, accent, light/dark). */
+    val look: Look = Look(),
+    /** Where the clock sits, as a fraction of the screen height from the top ("Move clock"). */
+    val headerPosition: Float = SizeTokens.headerTopSpaceRatio,
 )
 
 class Settings(private val context: Context) {
@@ -57,6 +63,8 @@ class Settings(private val context: Context) {
         val notificationSummary = booleanPreferencesKey("notification_summary")
         val calendarEvents = booleanPreferencesKey("calendar_events")
         val hiddenCalendars = stringSetPreferencesKey("hidden_calendars")
+        val look = stringPreferencesKey("look")
+        val headerPosition = floatPreferencesKey("header_position")
     }
 
     private val booleanKeys = mapOf(
@@ -93,6 +101,9 @@ class Settings(private val context: Context) {
             notificationSummary = p[Keys.notificationSummary] ?: false,
             calendarEvents = p[Keys.calendarEvents] ?: false,
             hiddenCalendars = p[Keys.hiddenCalendars].orEmpty().mapNotNullTo(HashSet()) { it.toLongOrNull() },
+            look = Look.fromJson(p[Keys.look]),
+            headerPosition = (p[Keys.headerPosition] ?: SizeTokens.headerTopSpaceRatio)
+                .coerceIn(SizeTokens.headerPositionMin, SizeTokens.headerPositionMax),
         )
     }
 
@@ -111,6 +122,12 @@ class Settings(private val context: Context) {
     suspend fun setFlag(name: String, value: Boolean) {
         val key = booleanKeys[name] ?: error("unknown setting $name")
         context.dataStore.edit { it[key] = value }
+    }
+
+    suspend fun setLook(look: Look) = context.dataStore.edit { it[Keys.look] = look.toJson() }
+
+    suspend fun setHeaderPosition(ratio: Float) = context.dataStore.edit {
+        it[Keys.headerPosition] = ratio.coerceIn(SizeTokens.headerPositionMin, SizeTokens.headerPositionMax)
     }
 
     suspend fun setCalendarHidden(id: Long, hidden: Boolean) = context.dataStore.edit {
@@ -132,5 +149,7 @@ class Settings(private val context: Context) {
         for ((name, key) in booleanKeys) (values[name] as? Boolean)?.let { p[key] = it }
         (values["icon_pack"] as? String)?.let { p[Keys.iconPack] = it }
         (values["button_target"] as? String)?.let { p[Keys.buttonTarget] = it }
+        (values["look"] as? String)?.let { p[Keys.look] = it }
+        (values["header_position"] as? Number)?.let { p[Keys.headerPosition] = it.toFloat() }
     }
 }

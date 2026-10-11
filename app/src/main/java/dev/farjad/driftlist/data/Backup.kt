@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.data
 
+import dev.farjad.driftlist.data.db.ThemeEntity
 import androidx.room.withTransaction
 import dev.farjad.driftlist.data.db.DriftlistDatabase
 import dev.farjad.driftlist.data.db.FolderItemEntity
@@ -62,6 +63,12 @@ class Backup(private val db: DriftlistDatabase, private val settings: Settings) 
             })
             .put("usage_rules", JSONArray().apply {
                 db.usageDao().rules().forEach { put(JSONObject().put("package_name", it.packageName).put("user_serial", it.userSerial)) }
+            })
+            .put("themes", JSONArray().apply {
+                db.themeDao().all().forEach {
+                    put(JSONObject().put("id", it.id).put("name", it.name).put("look", it.look)
+                        .put("icon_pack", it.iconPack ?: JSONObject.NULL).put("created_at", it.createdAt))
+                }
             })
             .put("settings", JSONObject(settings.export()))
         out.write(root.toString(2).toByteArray(Charsets.UTF_8))
@@ -142,6 +149,14 @@ class Backup(private val db: DriftlistDatabase, private val settings: Settings) 
             db.usageDao().setRules(
                 root.optJSONArray("usage_rules").objects().map { o ->
                     UsageRuleEntity(o.getString("package_name"), o.getLong("user_serial"), now)
+                },
+            )
+        }
+        // Older backups have no themes: keep the ones on this phone.
+        root.optJSONArray("themes")?.let { arr ->
+            db.themeDao().replaceAll(
+                arr.objects().map { o ->
+                    ThemeEntity(o.getString("id"), o.getString("name"), o.getString("look"), o.optStringOrNull("icon_pack"), o.optLong("created_at", now), now)
                 },
             )
         }

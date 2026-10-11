@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.data
 
+import dev.farjad.driftlist.data.db.ThemeEntity
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -99,6 +100,28 @@ class BackupTest {
         assertEquals("compose", restored.shortcutId)
         assertEquals("New message", restored.label)
         assertEquals(restored.id, items.last().shortcutId)
+    }
+
+    @Test
+    fun roundTripKeepsThemesAndTheCurrentLook() = runBlocking {
+        val bold = Look(ClockStyle.Bold, "system:serif", 1.1f, 0xFFE0604F.toInt(), ThemeMode.Dark)
+        source.themeDao().upsert(ThemeEntity("t1", "Evening", bold.toJson(), ThemeEntity.ICONS_SYSTEM, 1, 1))
+        settings.setLook(bold)
+        settings.setHeaderPosition(0.3f)
+        val bytes = backupOf(source)
+
+        settings.setLook(Look())
+        settings.setHeaderPosition(0.13f)
+        Backup(target, settings).restore(ByteArrayInputStream(bytes))
+
+        val theme = target.themeDao().all().single()
+        assertEquals("Evening", theme.name)
+        assertEquals(bold, Look.fromJson(theme.look))
+        assertEquals(bold, settings.current().look)
+        assertEquals(0.3f, settings.current().headerPosition, 0.001f)
+        settings.setLook(Look())
+        settings.setHeaderPosition(0.13f)
+        Unit
     }
 
     @Test

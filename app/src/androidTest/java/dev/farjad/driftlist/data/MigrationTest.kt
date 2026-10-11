@@ -73,6 +73,21 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun v3ToV4KeepsSummaryRulesAndAddsThemes() {
+        helper.createDatabase(DB, 3).apply {
+            execSQL("insert into summary_rule (package_name, user_serial) values ('pkg.a', 0)")
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(DB, 4, true)
+
+        db.query("select count(*) from summary_rule").use { c -> c.moveToFirst(); assertEquals(1, c.getInt(0)) }
+        db.execSQL("insert into theme (id, name, look, icon_pack, created_at, updated_at) values ('t', 'Mine', '{}', null, 1, 1)")
+        db.query("select name from theme").use { c -> c.moveToFirst(); assertEquals("Mine", c.getString(0)) }
+        db.close()
+    }
+
     private companion object {
         const val DB = "migration-test.db"
     }

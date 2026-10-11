@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.home
 
+import dev.farjad.driftlist.ui.components.MoveClockSheet
 import android.Manifest
 import android.app.Activity
 import android.net.Uri
@@ -122,6 +123,7 @@ private sealed interface Overlay {
     data object ButtonTarget : Overlay
     data object Recent : Overlay
     data object Agenda : Overlay
+    data object MoveClock : Overlay
 }
 
 /** S05 favorites + S06 app list sharing one wave alphabet, plus every sheet opened from them. */
@@ -473,6 +475,13 @@ fun HomeScreen(
             onClose = close,
             calendarOn = agendaOn,
             onToggleCalendar = toggleCalendar,
+            onMoveClock = { overlay = Overlay.MoveClock },
+        )
+        Overlay.MoveClock -> MoveClockSheet(
+            position = state.settings.headerPosition,
+            onChange = vm::setHeaderPosition,
+            onReset = { vm.setHeaderPosition(SizeTokens.headerTopSpaceRatio) },
+            onClose = close,
         )
         Overlay.Agenda -> AgendaSheet(
             events = state.agenda,
@@ -584,7 +593,7 @@ private fun FavoritesPane(
                 }
             },
     ) {
-        val topSpace = maxHeight * SizeTokens.headerTopSpaceRatio
+        val topSpace = maxHeight * state.settings.headerPosition
         Column(Modifier.fillMaxSize().padding(start = if (state.settings.leftHanded) SpaceTokens.s3 else SizeTokens.edgeGutter, end = if (state.settings.leftHanded) SpaceTokens.s5 else 0.dp)) {
             Spacer(Modifier.height(topSpace))
             ClockHeader(

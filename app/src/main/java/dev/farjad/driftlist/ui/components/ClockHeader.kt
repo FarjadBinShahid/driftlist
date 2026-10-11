@@ -1,5 +1,9 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import dev.farjad.driftlist.data.ClockStyle
+import dev.farjad.driftlist.ui.theme.LocalClockStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.text.style.TextOverflow
@@ -65,14 +69,11 @@ fun ClockHeader(
     val time = now.format(DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", locale))
     val date = now.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale))
 
-    Column(modifier) {
-        Text(
-            time,
-            style = TypeTokens.clock.onWallpaper(colors),
-            modifier = Modifier
-                .combinedClickable(onClick = onClockClick, onLongClick = onLongClick)
-                .semantics { contentDescription = "$time, open clock. Long-press for header options" },
-        )
+    val clockStyle = LocalClockStyle.current
+    val clockModifier = Modifier
+        .combinedClickable(onClick = onClockClick, onLongClick = onLongClick)
+        .semantics(mergeDescendants = true) { contentDescription = "$time, open clock. Long-press for header options" }
+    val dateText: @Composable () -> Unit = {
         Text(
             date,
             style = TypeTokens.date.onWallpaper(colors),
@@ -82,6 +83,30 @@ fun ClockHeader(
                 .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
                 .semantics { contentDescription = if (dateOpensAgenda) "$date, show the week ahead" else "$date, open calendar" },
         )
+    }
+
+    Column(modifier) {
+        when (clockStyle) {
+            ClockStyle.Thin -> Text(time, style = TypeTokens.clock.onWallpaper(colors), modifier = clockModifier)
+            ClockStyle.Bold -> Text(time, style = TypeTokens.clockBold.onWallpaper(colors), modifier = clockModifier)
+            ClockStyle.Mono -> Text(
+                time,
+                style = TypeTokens.clockMono.onWallpaper(colors).copy(fontFamily = FontFamily.Monospace),
+                modifier = clockModifier,
+            )
+            ClockStyle.Stacked -> {
+                val (hours, minutes) = time.split(':').let { it[0].padStart(2, '0') to it.getOrElse(1) { "" } }
+                Column(clockModifier) {
+                    Text(hours, style = TypeTokens.clockStacked.onWallpaper(colors).copy(fontWeight = FontWeight.Bold))
+                    Text(minutes, style = TypeTokens.clockStacked.onWallpaper(colors, colors.textMuted))
+                }
+            }
+            ClockStyle.Compact -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4)) {
+                Text(time, style = TypeTokens.clockSmall.onWallpaper(colors), modifier = clockModifier)
+                dateText()
+            }
+        }
+        if (clockStyle != ClockStyle.Compact) dateText()
         val next = remember(upcoming, now) { Agenda.nextUp(upcoming, now.toInstant().toEpochMilli(), now.zone) }
         if (next != null) {
             val line = Agenda.headerLine(next, now.toInstant().toEpochMilli(), now.zone, DateFormat.is24HourFormat(context), locale)

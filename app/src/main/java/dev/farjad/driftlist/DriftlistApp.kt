@@ -1,5 +1,6 @@
 package dev.farjad.driftlist
 
+import dev.farjad.driftlist.system.WallpaperWatcher
 import dev.farjad.driftlist.system.calendar.CalendarSource
 import android.app.Application
 import android.content.BroadcastReceiver
@@ -39,6 +40,7 @@ class AppContainer(context: Context) {
     val usageBreaker = UsageBreaker(context, db, scope)
     val media = MediaHub(context)
     val calendar = CalendarSource(context)
+    val wallpaper = WallpaperWatcher(context)
     val summary = NotificationSummary(context, db, scope)
     val backup = Backup(db, settings)
 }
@@ -53,6 +55,7 @@ class DriftlistApp : Application() {
         container = c
         c.catalog.onSynced = c.icons::onCatalogSynced
         c.catalog.start()
+        c.wallpaper.start()
         c.usageBreaker.start()
         c.summary.start()
         c.notifications.interceptor = c.summary::intercept

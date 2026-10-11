@@ -88,6 +88,8 @@ dependencies {
     implementation(libs.datastore.preferences)
 
     testImplementation(libs.junit)
+    // Android's org.json is a stub on the JVM; the real one for unit tests of the JSON formats.
+    testImplementation(libs.org.json)
 
     androidTestImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.runner)

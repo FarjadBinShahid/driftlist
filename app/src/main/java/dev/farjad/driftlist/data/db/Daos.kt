@@ -423,3 +423,30 @@ abstract class UsageDao {
     @Query("delete from usage_session where ended_at is not null and started_at < :before")
     abstract suspend fun deleteEndedBefore(before: Long)
 }
+
+@Dao
+abstract class ThemeDao {
+    @Query("select * from theme order by updated_at desc")
+    abstract fun observeAll(): Flow<List<ThemeEntity>>
+
+    @Query("select * from theme order by updated_at desc")
+    abstract suspend fun all(): List<ThemeEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    abstract suspend fun upsert(theme: ThemeEntity)
+
+    @Query("update theme set name = :name, updated_at = :now where id = :id")
+    abstract suspend fun rename(id: String, name: String, now: Long)
+
+    @Query("delete from theme where id = :id")
+    abstract suspend fun delete(id: String)
+
+    @Query("delete from theme")
+    abstract suspend fun clear()
+
+    @Transaction
+    open suspend fun replaceAll(themes: List<ThemeEntity>) {
+        clear()
+        themes.forEach { upsert(it) }
+    }
+}

@@ -1,19 +1,24 @@
 # Parity: Driftlist 0.2.0 (build 932fb1c) vs Niagara Launcher
 
-## Update after milestone 3b part 1 (2026-10-12)
+## Update after milestone 3b (2026-10-12)
 
 | | |
 | --- | --- |
-| **Feature parity** | **75.0 / 100** (was 63.2 after M3a); calendar added back at the user's request, weather stays `skip` |
+| **Feature parity** | **84.5 / 100** (63.2 after M3a, 75.0 after the calendar) |
 | Must-haves | **29 of 29** |
 | Open bugs | no S1, no S2; one S4 (BUG-011) |
-| Verdict | **not shippable yet**: all must-haves done, score under 80 |
+| Verdict | **shippable** by the replica rule: all must-haves, 80+, no open S1/S2. Not yet "better than the original": that needs the fixes from `/replica-entrepreneur` |
 
-Built in M3b part 1: suggested apps with "Stop suggesting", the music card, widget stacks (up to 4), the round action button (app or folder), the search button and "Recently installed" footer in the list, left-hand mode, the haptics toggle, Home within 3 s returning to the list, Quick Lock (double-tap the strip), Notification Summary, and settings split into six sub-pages (gap L12 closed). Then the calendar: next event under the date and a 7-day agenda sheet, with a per-calendar filter.
+M3b part 1: suggested apps, music card, widget stacks, the round button, list search button and Recently installed, left-hand mode, haptics, Home within 3 s, Quick Lock, Notification Summary, settings sub-pages (L12). Then the calendar (next event and a 7-day agenda, per-calendar filter). Then theming: accent from the wallpaper or eight presets with WCAG-checked palettes, five clock styles, nine system fonts plus .ttf/.otf import, home text size, light/dark override, six ready-made themes, Theme Studio with live preview and autosave, My themes, and Move clock.
 
-Weakest areas now: layout 17 (foldable two-column, landscape), theming 18, search 56 (calculator, live web suggestions).
+Weakest areas now: layout 17 (foldable two-column, landscape BUG-011), search 56 (calculator, live web suggestions), pop-ups 75.
 
-**Next:** theming part 1 (wallpaper colours, clock styles, OFL fonts, ready-made themes), then the header position slider and the search calculator. Theming alone is worth about +9 points, which takes the score past 80.
+**Top five next:**
+1. Calculator in search (should, small, pure parser, unit-testable).
+2. Work profile apps (should, partial): show and badge apps from a work profile.
+3. Web search: engine choice (should, partial).
+4. Landscape fix BUG-011 and the rotation setting.
+5. Wallpaper in Theme Studio via the system picker, and theme files you can share.
 
 The rest of this file is the 2026-10-11 baseline, kept for history.
 

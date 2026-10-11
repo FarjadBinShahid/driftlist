@@ -70,6 +70,9 @@ object TypeTokens {
     val bodySm = TypeToken(14f, 20f, FontWeight(400), 0f)
     val label = TypeToken(14f, 20f, FontWeight(600), 0.1f)
     val caption = TypeToken(12f, 16f, FontWeight(500), 0.2f)
+    val clockBold = TypeToken(72f, 76f, FontWeight(800), -2.0f)
+    val clockStacked = TypeToken(72f, 70f, FontWeight(300), -1.5f)
+    val clockMono = TypeToken(58f, 64f, FontWeight(400), 0.0f)
 }
 
 object SpaceTokens {
@@ -118,6 +121,14 @@ object SizeTokens {
     val eventBarHeight = 36.dp
     val eventDot = 8.dp
     val agendaMaxHeight = 520.dp
+    val swatch = 40.dp
+    val themeCardWidth = 136.dp
+    val themeCardHeight = 112.dp
+    val lookPreviewHeight = 300.dp
+    const val headerPositionMin = 0.04f
+    const val headerPositionMax = 0.4f
+    const val fontScaleMin = 0.85f
+    const val fontScaleMax = 1.3f
 }
 
 object RadiusTokens {

@@ -246,3 +246,21 @@ data class BatchItemEntity(
     val body: String?,
     @ColumnInfo(name = "posted_at") val postedAt: Long,
 )
+
+/**
+ * A saved look in My Themes (S18). [look] is [dev.farjad.driftlist.data.Look] as JSON.
+ * [iconPack]: a package name, [ICONS_SYSTEM] for system icons, or null to leave icons alone.
+ */
+@Entity(tableName = "theme", indices = [Index(value = ["updated_at"])])
+data class ThemeEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val look: String,
+    @ColumnInfo(name = "icon_pack") val iconPack: String?,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+) {
+    companion object {
+        const val ICONS_SYSTEM = "system"
+    }
+}

@@ -1,5 +1,7 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.UnfoldMore
+import androidx.compose.material3.Slider
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Switch
 import androidx.compose.foundation.Image
@@ -497,6 +499,7 @@ fun HeaderOptionsSheet(
     onClose: () -> Unit,
     calendarOn: Boolean = false,
     onToggleCalendar: () -> Unit = {},
+    onMoveClock: () -> Unit = {},
 ) {
     DriftSheet(onClose) {
         SheetTitle("Home screen")
@@ -522,6 +525,7 @@ fun HeaderOptionsSheet(
                 onRemoveWidget,
             )
         }
+        CardRow("Move clock", Icons.Outlined.UnfoldMore, onMoveClock, supporting = "Higher or lower on the screen")
         CardRow("Edit favorites", Icons.Outlined.Reorder, onEditFavorites)
         CardRow("Driftlist settings", Icons.Outlined.Settings, onOpenSettings)
         Box(Modifier.height(SpaceTokens.s2))
@@ -551,5 +555,27 @@ fun SetupCard(
             Spacer(Modifier.height(SpaceTokens.s4))
             Button(onClick = onAction, modifier = Modifier.align(Alignment.End)) { Text(action) }
         }
+    }
+}
+
+/** Slide to move the clock; home updates behind the sheet as you drag. */
+@Composable
+fun MoveClockSheet(position: Float, onChange: (Float) -> Unit, onReset: () -> Unit, onClose: () -> Unit) {
+    DriftSheet(onClose) {
+        SheetTitle("Move clock")
+        Slider(
+            value = position,
+            onValueChange = onChange,
+            valueRange = SizeTokens.headerPositionMin..SizeTokens.headerPositionMax,
+            modifier = Modifier
+                .padding(horizontal = SpaceTokens.s7)
+                .semantics { contentDescription = "Clock position, top to lower down" },
+        )
+        Row(Modifier.padding(horizontal = SpaceTokens.s7), verticalAlignment = Alignment.CenterVertically) {
+            Text("Higher", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant), modifier = Modifier.weight(1f))
+            Text("Lower", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
+        }
+        TextButton(onClick = onReset, modifier = Modifier.padding(start = SpaceTokens.s5, top = SpaceTokens.s2)) { Text("Reset") }
+        Box(Modifier.height(SpaceTokens.s2))
     }
 }

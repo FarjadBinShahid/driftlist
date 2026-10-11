@@ -1,5 +1,9 @@
 package dev.farjad.driftlist
 
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import android.app.Activity
 import android.content.Intent
 import android.graphics.Color
@@ -21,7 +25,6 @@ import dev.farjad.driftlist.ui.theme.DriftlistTheme
 import dev.farjad.driftlist.ui.theme.HomeColorsForDarkWallpaper
 import dev.farjad.driftlist.ui.theme.HomeColorsForLightWallpaper
 import dev.farjad.driftlist.ui.theme.LocalHomeColors
-import dev.farjad.driftlist.ui.theme.wallpaperWantsDarkText
 
 /** The HOME activity. Everything the launcher shows lives in here. */
 class MainActivity : ComponentActivity() {
@@ -33,14 +36,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        darkText = wallpaperWantsDarkText(this)
+        val container = (application as DriftlistApp).container
+        darkText = container.wallpaper.state.value.darkText
         applySystemBars()
         setContent {
-            LaunchedEffect(darkText) { applySystemBars() }
+            val wallpaper by container.wallpaper.state.collectAsStateWithLifecycle()
+            val look by remember { vm.state.map { it.settings.look }.distinctUntilChanged() }
+                .collectAsStateWithLifecycle(initialValue = vm.state.value.settings.look)
+            LaunchedEffect(wallpaper.darkText) {
+                darkText = wallpaper.darkText
+                applySystemBars()
+            }
             CompositionLocalProvider(
-                LocalHomeColors provides if (darkText) HomeColorsForLightWallpaper else HomeColorsForDarkWallpaper,
+                LocalHomeColors provides if (wallpaper.darkText) HomeColorsForLightWallpaper else HomeColorsForDarkWallpaper,
             ) {
-                DriftlistTheme {
+                DriftlistTheme(look, wallpaper.seed) {
                     HomeScreen(
                         vm = vm,
                         onOpenSettings = { startActivity(Intent(this, SettingsActivity::class.java)) },
@@ -64,7 +74,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         vm.refreshSetup()
-        darkText = wallpaperWantsDarkText(this)
+        (application as DriftlistApp).container.wallpaper.refresh()
     }
 
     override fun onNewIntent(intent: Intent) {

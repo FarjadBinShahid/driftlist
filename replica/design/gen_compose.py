@@ -80,7 +80,7 @@ def generate(t, package):
 
     out.append("object SizeTokens {")
     for k, v in t["size"].items():
-        if isinstance(v, float) and v < 1:
+        if isinstance(v, float):  # ratios and scales; whole numbers are dp
             out.append("    const val %s = %sf" % (camel(k), v))
         else:
             out.append("    val %s = %d.dp" % (camel(k), v))

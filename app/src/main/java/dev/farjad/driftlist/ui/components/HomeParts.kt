@@ -266,3 +266,9 @@ fun RecentlyInstalledSheet(apps: List<AppEntity>, icons: IconCache, onLaunch: (A
         Box(Modifier.height(SpaceTokens.s2))
     }
 }
+
+/** A plain round icon stand-in, for previews that show no real apps. */
+@Composable
+fun AppIconPlaceholder(color: androidx.compose.ui.graphics.Color, modifier: Modifier = Modifier) {
+    Box(modifier.size(SizeTokens.iconPopup).clip(CircleShape).background(color))
+}

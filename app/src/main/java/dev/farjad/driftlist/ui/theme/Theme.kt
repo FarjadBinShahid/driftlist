@@ -1,5 +1,21 @@
 package dev.farjad.driftlist.ui.theme
 
+import android.graphics.Typeface
+import androidx.compose.material3.ColorScheme
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import dev.farjad.driftlist.data.ClockStyle
+import dev.farjad.driftlist.data.Fonts
+import dev.farjad.driftlist.data.Look
+import dev.farjad.driftlist.data.ThemeMode
+import dev.farjad.driftlist.domain.Palette
+import dev.farjad.driftlist.system.FontStore
+import java.io.File
 import android.app.WallpaperColors
 import android.app.WallpaperManager
 import android.content.Context
@@ -55,13 +71,69 @@ private val DarkScheme = darkColorScheme(
     scrim = DarkTokens.scrim,
 )
 
+/**
+ * Sheets and settings follow [Look.mode]; the accent comes from [Look.accent] or, when that is
+ * null, the wallpaper's [wallpaperSeed]. Home text gets the look's font and size via [LocalHomeType].
+ */
 @Composable
-fun DriftlistTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) DarkScheme else LightScheme,
-        content = content,
+fun DriftlistTheme(look: Look = Look(), wallpaperSeed: Int? = null, content: @Composable () -> Unit) {
+    val dark = when (look.mode) {
+        ThemeMode.Auto -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+    val seed = look.accent ?: wallpaperSeed
+    val scheme = remember(dark, seed) { schemeFor(dark, seed) }
+    val context = LocalContext.current
+    val family = remember(look.font) { fontFamilyFor(context, look.font) }
+    CompositionLocalProvider(
+        LocalHomeType provides HomeType(family, look.fontScale),
+        LocalClockStyle provides look.clockStyle,
+    ) {
+        MaterialTheme(colorScheme = scheme, content = content)
+    }
+}
+
+private fun schemeFor(dark: Boolean, seed: Int?): ColorScheme {
+    val base = if (dark) DarkScheme else LightScheme
+    if (seed == null) return base
+    val set = if (dark) {
+        Palette.dark(seed, DarkTokens.bg.toArgb(), DarkTokens.surfaceRaised.toArgb())
+    } else {
+        Palette.light(seed, LightTokens.bg.toArgb(), LightTokens.surfaceRaised.toArgb())
+    }
+    return base.copy(
+        primary = Color(set.accent),
+        onPrimary = Color(set.onAccent),
+        primaryContainer = Color(set.container),
+        onPrimaryContainer = Color(set.onContainer),
+        secondaryContainer = Color(set.container),
+        onSecondaryContainer = Color(set.onContainer),
     )
 }
+
+/** Font and size for text drawn on the wallpaper (home, list, clock). Sheets keep the system font. */
+@Immutable
+data class HomeType(val family: FontFamily = FontFamily.Default, val scale: Float = 1f)
+
+val LocalHomeType = staticCompositionLocalOf { HomeType() }
+val LocalClockStyle = staticCompositionLocalOf { ClockStyle.Thin }
+
+/** System families by name; imported files from app storage. Anything unreadable falls back to the default. */
+fun fontFamilyFor(context: Context, id: String): FontFamily = runCatching {
+    when {
+        id == Fonts.DEFAULT -> FontFamily.Default
+        id == "system:serif" -> FontFamily.Serif
+        id == "system:monospace" -> FontFamily.Monospace
+        id == "system:cursive" -> FontFamily.Cursive
+        id.startsWith("system:") -> FontFamily(Typeface.create(id.removePrefix("system:"), Typeface.NORMAL))
+        id.startsWith(Fonts.FILE_PREFIX) -> {
+            val file = File(FontStore.dir(context), id.removePrefix(Fonts.FILE_PREFIX))
+            if (file.isFile) FontFamily(Font(file)) else FontFamily.Default
+        }
+        else -> FontFamily.Default
+    }
+}.getOrDefault(FontFamily.Default)
 
 fun TypeToken.style(color: Color = Color.Unspecified): TextStyle = TextStyle(
     color = color,
@@ -84,9 +156,18 @@ data class HomeColors(
     val shadow: Shadow?,
 )
 
-/** A [TypeToken] styled for text drawn on the wallpaper. */
-fun TypeToken.onWallpaper(colors: HomeColors, color: Color = colors.text): TextStyle =
-    style(color).copy(shadow = colors.shadow)
+/** A [TypeToken] styled for text drawn on the wallpaper, in the look's font and size. */
+@Composable
+@ReadOnlyComposable
+fun TypeToken.onWallpaper(colors: HomeColors, color: Color = colors.text): TextStyle {
+    val type = LocalHomeType.current
+    return style(color).copy(
+        shadow = colors.shadow,
+        fontFamily = type.family,
+        fontSize = (size * type.scale).sp,
+        lineHeight = (line * type.scale).sp,
+    )
+}
 
 val HomeColorsForDarkWallpaper = HomeColors(
     text = HomeTokens.textOnDark,
@@ -109,12 +190,3 @@ val HomeColorsForLightWallpaper = HomeColors(
 )
 
 val LocalHomeColors = staticCompositionLocalOf { HomeColorsForDarkWallpaper }
-
-/** True when the system says the current wallpaper wants dark text (API 31+). Otherwise assume a dark wallpaper. */
-fun wallpaperWantsDarkText(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-    val colors = runCatching {
-        WallpaperManager.getInstance(context).getWallpaperColors(WallpaperManager.FLAG_SYSTEM)
-    }.getOrNull() ?: return false
-    return colors.colorHints and WallpaperColors.HINT_SUPPORTS_DARK_TEXT != 0
-}
