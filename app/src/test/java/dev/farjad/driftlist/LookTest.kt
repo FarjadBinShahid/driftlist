@@ -2,6 +2,7 @@ package dev.farjad.driftlist
 
 import dev.farjad.driftlist.data.ClockStyle
 import dev.farjad.driftlist.data.Fonts
+import dev.farjad.driftlist.data.IconStyle
 import dev.farjad.driftlist.data.Look
 import dev.farjad.driftlist.data.ReadyThemes
 import dev.farjad.driftlist.data.ThemeMode
@@ -12,9 +13,15 @@ import org.junit.Test
 class LookTest {
     @Test
     fun roundTripsThroughJson() {
-        val look = Look(ClockStyle.Stacked, "file:Inter.ttf", 1.15f, 0xFFC2185B.toInt(), ThemeMode.Dark)
+        val look = Look(ClockStyle.Stacked, "file:Inter.ttf", 1.15f, 0xFFC2185B.toInt(), ThemeMode.Dark, IconStyle.Dots, "art:dunes")
         assertEquals(look, Look.fromJson(look.toJson()))
         assertEquals(Look(), Look.fromJson(Look().toJson()))
+    }
+
+    @Test
+    fun onlyOurOwnWallpapersAreAccepted() {
+        assertEquals(null, Look.fromJson("""{"wallpaper":"/sdcard/x.png"}""").wallpaper)
+        assertTrue(Look(wallpaper = "art:ink").sameStyle(Look()))
     }
 
     @Test

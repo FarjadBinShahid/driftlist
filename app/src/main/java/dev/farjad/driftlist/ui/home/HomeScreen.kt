@@ -268,6 +268,8 @@ fun HomeScreen(
             onLongClick = { overlay = Overlay.Options(app) },
             onSwipeRight = { anchor -> overlay = Overlay.Popup(app, anchor) },
             previewAge = latest?.let { RelativeTime.short(nowMs - it.postedAt) },
+            spokenLabel = if (app.userSerial in state.otherProfiles) remember(app.id) { vm.profileLabel(app) } else app.label,
+            paused = app.userSerial in state.pausedProfiles,
         )
     }
     val sideloaded = remember { SystemActions.isSideloaded(context) }
@@ -366,6 +368,9 @@ fun HomeScreen(
                         onSearch = { overlay = Overlay.Search },
                         onOpenSettings = onOpenSettings,
                         folders = if (state.settings.foldersInList) state.favorites.filterIsInstance<HomeEntry.Folder>() else emptyList(),
+                        hasWorkProfile = state.otherProfiles.isNotEmpty(),
+                        workPaused = state.pausedProfiles.isNotEmpty(),
+                        onToggleWork = { vm.setWorkPaused(state.pausedProfiles.isEmpty()) },
                         icons = vm.icons,
                         onFolderClick = { overlay = Overlay.Folder(it) },
                     )
@@ -846,6 +851,9 @@ private fun AppListPane(
     folders: List<HomeEntry.Folder> = emptyList(),
     icons: dev.farjad.driftlist.system.apps.IconCache? = null,
     onFolderClick: (HomeEntry.Folder) -> Unit = {},
+    hasWorkProfile: Boolean = false,
+    workPaused: Boolean = false,
+    onToggleWork: () -> Unit = {},
 ) {
     val colors = LocalHomeColors.current
     Box(Modifier.fillMaxSize()) {
@@ -876,6 +884,20 @@ private fun AppListPane(
             }
             items(folders, key = { "folder:" + it.folder.id }) { entry ->
                 FolderRow(title = entry.folder.title, apps = entry.apps, icons = icons, preview = null, onClick = { onFolderClick(entry) }, onLongClick = { onFolderClick(entry) })
+            }
+        }
+        if (hasWorkProfile) {
+            item(key = "footer:work") {
+                Text(
+                    if (workPaused) "Turn on work apps" else "Pause work apps",
+                    style = TypeTokens.list.onWallpaper(colors, colors.textMuted),
+                    modifier = Modifier
+                        .padding(top = SpaceTokens.s7)
+                        .fillMaxWidth()
+                        .heightIn(min = SizeTokens.listRow)
+                        .clickable(onClick = onToggleWork)
+                        .padding(vertical = SpaceTokens.s4),
+                )
             }
         }
         if (recentCount > 0) {

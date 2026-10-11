@@ -1,5 +1,26 @@
 package dev.farjad.driftlist.ui.settings
 
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.IconButton
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntSize
+import dev.farjad.driftlist.data.IconStyle
+import dev.farjad.driftlist.system.SystemActions
+import dev.farjad.driftlist.system.WallpaperArt
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -95,6 +116,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun LookHubPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
     val look = state.settings.look
+    var confirm by remember { mutableStateOf<ReadyTheme?>(null) }
     val packLabel = remember(state.settings.iconPack) {
         state.settings.iconPack?.let { pkg -> vm.iconPacks().firstOrNull { it.packageName == pkg }?.label ?: pkg }
     }
@@ -106,7 +128,9 @@ internal fun LookHubPage(vm: SettingsViewModel, state: SettingsUiState, padding:
                 horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
             ) {
                 items(ReadyThemes.all, key = { it.id }) { theme ->
-                    ThemeCard(theme, state.wallpaperSeed, selected = theme.look == look) { vm.setLook(theme.look) }
+                    ThemeCard(theme, state.wallpaperSeed, selected = theme.look.sameStyle(look)) {
+                        if (theme.look.wallpaper != null && theme.look.wallpaper != look.wallpaper) confirm = theme else vm.applyLook(theme.look, useWallpaper = false)
+                    }
                 }
             }
         }
@@ -116,7 +140,17 @@ internal fun LookHubPage(vm: SettingsViewModel, state: SettingsUiState, padding:
             val n = state.themes.size
             NavRow("My themes", if (n == 0) "None saved yet" else "$n saved") { onNavigate(Page.MyThemes) }
         }
+        item { NavRow("Wallpaper", WallpaperArt.design(look.wallpaper)?.name ?: "Yours") { onNavigate(Page.Wallpaper) } }
         item { NavRow("Icon pack", packLabel ?: "System icons") { onNavigate(Page.IconPack) } }
+    }
+    confirm?.let { theme ->
+        AlertDialog(
+            onDismissRequest = { confirm = null },
+            title = { Text("Use ${theme.name}'s wallpaper too?") },
+            text = { Text("This theme comes with its own wallpaper (${WallpaperArt.design(theme.look.wallpaper)?.name}). You can keep yours instead.") },
+            confirmButton = { TextButton(onClick = { vm.applyLook(theme.look, useWallpaper = true); confirm = null }) { Text("Use it") } },
+            dismissButton = { TextButton(onClick = { vm.applyLook(theme.look, useWallpaper = false); confirm = null }) { Text("Keep mine") } },
+        )
     }
 }
 
@@ -240,6 +274,33 @@ internal fun ThemeStudioPage(vm: SettingsViewModel, state: SettingsUiState, padd
             }
         }
 
+        item { SectionHeader("Wallpaper") }
+        item {
+            LazyRow(contentPadding = PaddingValues(horizontal = SpaceTokens.s7), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3)) {
+                item(key = "keep") {
+                    FilterChip(selected = look.wallpaper == null, onClick = { vm.setLook(look.copy(wallpaper = null)) }, label = { Text("Keep yours") })
+                }
+                items(WallpaperArt.designs, key = { it.id }) { d ->
+                    WallpaperThumb(d, selected = look.wallpaper == d.id, small = true) {
+                        scope.launch { vm.setWallpaper(d.id, WallpaperArt.Target.Home) }
+                    }
+                }
+            }
+        }
+
+        item { SectionHeader("Icons on home") }
+        item {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = SpaceTokens.s7)) {
+                IconStyle.entries.forEachIndexed { i, style ->
+                    SegmentedButton(
+                        selected = look.iconStyle == style,
+                        onClick = { vm.setLook(look.copy(iconStyle = style)) },
+                        shape = SegmentedButtonDefaults.itemShape(i, IconStyle.entries.size),
+                    ) { Text(style.label, maxLines = 1) }
+                }
+            }
+        }
+
         item { SectionHeader("Accent colour") }
         item {
             FlowRow(
@@ -356,6 +417,9 @@ internal fun LookPreview(look: Look, wallpaperSeed: Int?, modifier: Modifier = M
     val (h, s, _) = Palette.hsl(seed)
     val top = Color(Palette.fromHsl(h, s * 0.6f, 0.22f))
     val bottom = Color(Palette.fromHsl(h, s * 0.5f, 0.07f))
+    val art by produceState<ImageBitmap?>(null, look.wallpaper) {
+        value = look.wallpaper?.let { id -> withContext(Dispatchers.Default) { WallpaperArt.render(id, THUMB_W * 2, THUMB_H)?.asImageBitmap() } }
+    }
     DriftlistTheme(look, wallpaperSeed) {
         CompositionLocalProvider(LocalHomeColors provides HomeColorsForDarkWallpaper) {
             val colors = LocalHomeColors.current
@@ -365,6 +429,7 @@ internal fun LookPreview(look: Look, wallpaperSeed: Int?, modifier: Modifier = M
                     .height(SizeTokens.lookPreviewHeight)
                     .clip(RoundedCornerShape(RadiusTokens.lg))
                     .background(Brush.verticalGradient(listOf(top, bottom)))
+                    .then(art?.let { bmp -> Modifier.drawBehind { drawImage(bmp, dstSize = IntSize(size.width.toInt(), size.height.toInt())) } } ?: Modifier)
                     .clearAndSetSemantics { contentDescription = "Preview: ${look.summary(Fonts::label)}" }
                     .padding(SpaceTokens.s7),
             ) {
@@ -403,9 +468,29 @@ internal fun LookPreview(look: Look, wallpaperSeed: Int?, modifier: Modifier = M
 @Composable
 internal fun MyThemesPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, snackbar: SnackbarHostState) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var renaming by remember { mutableStateOf<ThemeEntity?>(null) }
     var deleting by remember { mutableStateOf<ThemeEntity?>(null) }
+    var menuFor by remember { mutableStateOf<String?>(null) }
+    val importFile = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val r = vm.importTheme(context, uri)
+            snackbar.showSnackbar(
+                r.fold(
+                    { p -> if (p.droppedFont) "${p.name} added. Its font isn't on this phone, so it uses the system font." else "${p.name} added to My themes" },
+                    { it.message ?: "That file couldn't be read" },
+                ),
+            )
+        }
+    }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        item {
+            NavRow("Share your current look", "Sends a small theme file anyone with Driftlist can open") {
+                vm.shareTheme(context, "My Driftlist look", state.settings.look, state.settings.iconPack)
+            }
+        }
+        item { NavRow("Import a theme file", "Adds it to My themes") { importFile.launch(arrayOf("application/json", "application/octet-stream", "*/*")) } }
         if (state.themes.isEmpty()) {
             item {
                 Text(
@@ -437,8 +522,17 @@ internal fun MyThemesPage(vm: SettingsViewModel, state: SettingsUiState, padding
                     Text(theme.name, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text(look.summary(Fonts::label), style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
                 }
-                TextButton(onClick = { renaming = theme }) { Text("Rename") }
-                TextButton(onClick = { deleting = theme }) { Text("Delete") }
+                Box {
+                    IconButton(onClick = { menuFor = theme.id }) { Icon(Icons.Outlined.MoreVert, contentDescription = "More for ${theme.name}") }
+                    DropdownMenu(expanded = menuFor == theme.id, onDismissRequest = { menuFor = null }) {
+                        DropdownMenuItem(text = { Text("Share") }, onClick = {
+                            menuFor = null
+                            vm.shareTheme(context, theme.name, look, theme.iconPack?.takeIf { it != ThemeEntity.ICONS_SYSTEM })
+                        })
+                        DropdownMenuItem(text = { Text("Rename") }, onClick = { menuFor = null; renaming = theme })
+                        DropdownMenuItem(text = { Text("Delete") }, onClick = { menuFor = null; deleting = theme })
+                    }
+                }
             }
         }
     }
@@ -512,3 +606,103 @@ internal fun FontLicencesPage(padding: PaddingValues) {
         )
     }
 }
+
+// --- S21 wallpaper picker -----------------------------------------------------------------------
+
+@Composable
+internal fun WallpaperPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, snackbar: SnackbarHostState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var choosing by remember { mutableStateOf<WallpaperArt.Design?>(null) }
+    val blurSupported = remember {
+        android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S &&
+            context.getSystemService(android.view.WindowManager::class.java).isCrossWindowBlurEnabled
+    }
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(WALLPAPER_COLUMNS),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = SpaceTokens.s7, end = SpaceTokens.s7,
+            top = padding.calculateTopPadding() + SpaceTokens.s3, bottom = padding.calculateBottomPadding() + SpaceTokens.s7,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+        verticalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text(
+                "Made by Driftlist, drawn on your phone at full resolution.",
+                style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+            )
+        }
+        items(WallpaperArt.designs, key = { it.id }) { d ->
+            WallpaperThumb(d, selected = state.settings.look.wallpaper == d.id, small = false) { choosing = d }
+        }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Column {
+                NavRow("Use a photo or another app", "Opens Android's wallpaper picker") {
+                    SystemActions.start(context, android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SET_WALLPAPER), "Set wallpaper"))
+                }
+                SectionHeader("Blur behind home")
+                if (!blurSupported) {
+                    Text(
+                        "This phone doesn't offer window blur (it needs Android 12 or later, and some phones turn it off).",
+                        style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                        modifier = Modifier.padding(horizontal = SpaceTokens.s7),
+                    )
+                } else {
+                    listOf("Off", "Light", "Strong").forEachIndexed { level, label ->
+                        ChoiceRow(label, state.settings.wallpaperBlur == level) { vm.setWallpaperBlur(level) }
+                    }
+                }
+            }
+        }
+    }
+    choosing?.let { d ->
+        AlertDialog(
+            onDismissRequest = { choosing = null },
+            title = { Text("Set ${d.name} on") },
+            text = {
+                Column {
+                    WallpaperArt.Target.entries.forEach { target ->
+                        TextButton(onClick = {
+                            choosing = null
+                            scope.launch {
+                                val ok = vm.setWallpaper(d.id, target)
+                                snackbar.showSnackbar(if (ok) "Wallpaper set" else "Couldn't set the wallpaper")
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text(target.label, modifier = Modifier.fillMaxWidth()) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosing = null }) { Text("Cancel") } },
+        )
+    }
+}
+
+@Composable
+private fun WallpaperThumb(design: WallpaperArt.Design, selected: Boolean, small: Boolean, onClick: () -> Unit) {
+    val bmp by produceState<ImageBitmap?>(null, design.id) {
+        value = withContext(Dispatchers.Default) { WallpaperArt.render(design.id, THUMB_W, THUMB_H)?.asImageBitmap() }
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            Modifier
+                .then(if (small) Modifier.width(SizeTokens.wallpaperThumbSmall) else Modifier.fillMaxWidth())
+                .aspectRatio(THUMB_W / THUMB_H.toFloat())
+                .clip(RoundedCornerShape(RadiusTokens.md))
+                .then(if (selected) Modifier.border(SpaceTokens.s1 * 1.5f, MaterialTheme.colorScheme.primary, RoundedCornerShape(RadiusTokens.md)) else Modifier)
+                .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+                .semantics { contentDescription = "${design.name} wallpaper" },
+            contentAlignment = Alignment.Center,
+        ) {
+            bmp?.let { Image(it, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize()) }
+            if (selected) Icon(Icons.Outlined.Check, contentDescription = null, tint = Color.White)
+        }
+        if (!small) Text(design.name, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurface), modifier = Modifier.padding(top = SpaceTokens.s2))
+    }
+}
+
+private const val WALLPAPER_COLUMNS = 3
+private const val THUMB_W = 216
+private const val THUMB_H = 468

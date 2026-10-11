@@ -1,5 +1,11 @@
 package dev.farjad.driftlist.system.apps
 
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
+import android.os.Process
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -53,9 +59,65 @@ class AppCatalog(
         override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = requestSync()
     }
 
+    /** Serials of profiles (work, dual apps) that are paused right now. */
+    private val _paused = MutableStateFlow<Set<Long>>(emptySet())
+    val paused: StateFlow<Set<Long>> = _paused
+
+    /** Serials of profiles other than the main one. */
+    private val _otherProfiles = MutableStateFlow<Set<Long>>(emptySet())
+    val otherProfiles: StateFlow<Set<Long>> = _otherProfiles
+
     fun start() {
         launcherApps.registerCallback(callback, Handler(Looper.getMainLooper()))
+        // Work profile added, removed, paused or resumed: re-read apps and paused state.
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_MANAGED_PROFILE_ADDED)
+            addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED)
+            addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
+        }
+        ContextCompat.registerReceiver(
+            context,
+            object : BroadcastReceiver() {
+                override fun onReceive(c: Context, intent: Intent) {
+                    refreshProfiles()
+                    requestSync()
+                }
+            },
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        refreshProfiles()
         requestSync()
+    }
+
+    private fun refreshProfiles() {
+        val me = Process.myUserHandle()
+        val others = userManager.userProfiles.filter { it != me }
+        _otherProfiles.value = others.mapTo(HashSet()) { userManager.getSerialNumberForUser(it) }
+        _paused.value = others.filter { runCatching { userManager.isQuietModeEnabled(it) }.getOrDefault(false) }
+            .mapTo(HashSet()) { userManager.getSerialNumberForUser(it) }
+    }
+
+    /** "Work Gmail"-style label Android uses for apps in another profile, for TalkBack. */
+    fun profileLabel(app: AppEntity): String {
+        val user = userFor(app.userSerial) ?: return app.label
+        return runCatching { context.packageManager.getUserBadgedLabel(app.label, user).toString() }.getOrDefault(app.label)
+    }
+
+    /**
+     * Pauses or resumes the work profile. Android lets the default launcher do this; it may show
+     * its own confirmation. Returns false when the phone refuses.
+     */
+    fun setProfilesPaused(paused: Boolean): Boolean {
+        val me = Process.myUserHandle()
+        var ok = false
+        for (user in userManager.userProfiles.filter { it != me }) {
+            ok = runCatching { userManager.requestQuietModeEnabled(paused, user) }.isSuccess || ok
+        }
+        refreshProfiles()
+        return ok
     }
 
     fun requestSync() {
@@ -101,6 +163,12 @@ class AppCatalog(
     fun info(appId: String): LauncherActivityInfo? = infos[appId]
 
     fun launch(app: AppEntity, sourceBounds: Rect?): Boolean {
+        // A paused work app: ask Android to turn work apps back on (it shows its own prompt).
+        if (app.userSerial in _paused.value) {
+            userFor(app.userSerial)?.let { user -> runCatching { userManager.requestQuietModeEnabled(false, user) } }
+            refreshProfiles()
+            return true
+        }
         val info = infos[app.id] ?: return false
         return try {
             launcherApps.startMainActivity(info.componentName, info.user, sourceBounds, null)

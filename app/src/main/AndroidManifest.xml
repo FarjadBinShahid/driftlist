@@ -13,6 +13,8 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Setting Driftlist's own wallpapers (a normal permission, granted at install). -->
+    <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- Only used when the user turns on live web suggestions in search. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Contact search, opt-in. Read only; nothing is stored. -->
@@ -92,6 +94,17 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/quick_lock_service" />
         </service>
+
+        <!-- Shares theme files from the app's cache; nothing else is exposed. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/shared_files" />
+        </provider>
 
         <receiver
             android:name=".system.notifications.SummaryReceiver"

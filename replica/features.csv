@@ -9,7 +9,7 @@ Wave alphabet scroller on right edge,app list,must,yes,yes,"M3a: star, letters w
 Haptic tick per letter (toggle),app list,should,yes,yes,M3b: Settings > Gestures and search > Vibrate on letters
 Locale-aware alphabet buckets (# and extra letters),app list,should,yes,yes,free; ICU AlphabeticIndex; help 155
 Live app list updates on install / uninstall / update,core,must,yes,yes,free; LauncherApps callbacks
-Work profile / multi-user apps shown,core,should,yes,partial,free; user_handle on LauncherApp
+Work profile / multi-user apps shown,core,should,yes,yes,"M4: all profiles listed with badges; TalkBack says ""Work ...""; paused work apps dimmed, tap asks Android to turn them on; Pause/Turn on work apps in the list footer; reacts to profile changes. Not tried with a real work profile"
 Recently installed list in app list footer,app list,should,yes,yes,M3b: footer row with a count opens a sheet of the last 14 days
 Inline notification preview on app rows,notifications,must,yes,yes,M3a: shows the age (Messages · 4m) and a > button that opens the pop-up
 Swipe right on app opens app pop-up,pop-ups,must,yes,yes,M3a: floating card anchored at the swiped row (measured on the reference)
@@ -42,16 +42,16 @@ Left-hand mode (left edge scroller),accessibility,should,yes,yes,"M3b: strip, wa
 Light / dark mode,theming,must,yes,yes,M2: sheets and settings follow the system theme; home follows the wallpaper (verified in test pass P-3)
 Wallpaper-derived colour palette (Material You backport),theming,should,yes,yes,"M3b: accent from the wallpaper's main colour (API 27+), follows wallpaper changes; own palette code keeps every pair at WCAG AA (unit-tested across 12 seeds)"
 Accent colour override,theming,could,yes,yes,M3b: 8 accent presets or From wallpaper in Theme Studio
-Wallpaper blur,theming,could,yes,no,free; help 64
-Built-in wallpaper picker (home / lock / both),theming,could,yes,no,free; own wallpapers only
+Wallpaper blur,theming,could,yes,yes,M4: off / light / strong via the system's window blur (Android 12+ where the phone allows it; verified on the emulator)
+Built-in wallpaper picker (home / lock / both),theming,could,yes,yes,"M4: eight of our own wallpapers drawn in code at full resolution; home, lock or both; photo/other app via Android's picker"
 Font size scaling,theming,should,yes,yes,"M3b: Theme Studio text size 85-130% for home text, on top of the system font size"
 Ready-made themes (one-tap apply),theming,should,yes,yes,"M3b: six of our own (Driftlist, Ink, Night shift, Terminal, Postcard, Quiet), all free"
-Theme Studio editor with live preview,theming,should,yes,partial,"M3b: live preview; clock, font, text size, accent, light/dark; changes autosave. Wallpaper is not part of a theme; icon pack is set on its own page (saved themes remember it)"
+Theme Studio editor with live preview,theming,should,yes,yes,M4: adds wallpaper and icon style; preview shows the wallpaper; themes carry our wallpapers (asks before replacing yours)
 My Themes: save multiple and switch,theming,should,yes,yes,"M3b: save from Theme Studio, apply, rename, delete; included in backups"
-Share theme as file / import theme file,theming,could,yes,no,pro import; own file format; size cap; no system font / external wallpaper
+Share theme as file / import theme file,theming,could,yes,yes,"M4: .driftlist-theme JSON via the share sheet; import into My themes; 64 KB cap; imported fonts don't travel (falls back, says so); unit-tested"
 Third-party icon pack support,icons,must,yes,yes,M2: verified with Arcticons Material You 15.3.2; uncovered apps keep their system icon
 Per-app icon override picker,icons,must,yes,yes,"M2: verified; suggestions first, search by icon name"
-Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,partial,M2: picker lists name-matched icons first; no learning
+Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,yes,M4: icon pack page lists apps the pack doesn't cover; tap for name-matched suggestions. No crowd data (stays on the phone)
 Icon Assistant: auto-restore per-pack choices,icons,should,yes,yes,M2: verified switching to system icons and back
 Custom fonts (bundled + import .ttf/.otf),theming,should,yes,yes,"11 bundled OFL fonts from github.com/google/fonts (variable weights; licences in Settings > About > Font licences), 9 phone families, and .ttf/.otf import (checked, 8 MB cap)"
 Clock styles,theming,should,yes,yes,"M3b: five of our own: Thin, Bold, Stacked, Compact, Mono"
@@ -72,8 +72,8 @@ Plug and Play: music apps appear when headphones connect,home,could,yes,yes,"M4:
 Flashlight-on reminder row,home,could,yes,yes,"M4: row on home while the torch is on, with Turn off (CameraManager, no permission); switch in Home screen settings"
 Backup to local file + restore,backup,must,yes,yes,"M2: JSON via the system file picker; verified save, wipe, restore"
 Permission explainer dialogs with deep links,core,must,yes,yes,"M3a: explainer dialogs for notification and usage access, with restricted-settings steps for sideloaded installs (Android 13+)"
-Anycons / Niagara Dots icon art,icons,could,yes,skip,their artwork; draw or license your own icon set
-Built-in wallpapers / artist themes / clock designs,theming,could,yes,skip,their artwork; create your own
+Anycons / Niagara Dots icon art,icons,could,yes,yes,"M4: our own icon styles instead of their art: Icons, Dots (coloured from each app's icon) or Text only"
+Built-in wallpapers / artist themes / clock designs,theming,could,yes,yes,"M4: our own: eight drawn wallpapers, five clock styles, six ready-made themes"
 Anycons ML app categorisation + crowd icon suggestions,icons,could,yes,skip,server-side data the app owns
 Community themes hub (Discord),theming,could,yes,skip,the community is not product you can rebuild
 Niagara ID account + licence on 3 devices,monetization,could,yes,skip,personal project; use a debug Pro flag

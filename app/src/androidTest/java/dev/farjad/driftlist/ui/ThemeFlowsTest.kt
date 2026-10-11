@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollToNodeAction
@@ -55,7 +56,7 @@ class ThemeFlowsTest {
 
     /** Lazy lists only compose what's near the screen: scroll the list to the node first. */
     private fun ComposeTestRule.scrollTo(matcher: SemanticsMatcher) =
-        onNode(hasScrollToNodeAction()).performScrollToNode(matcher)
+        onNode(hasScrollToNodeAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)).performScrollToNode(matcher)
 
     private fun look() = runBlocking { TestState.container.settings.current().look }
 
@@ -66,7 +67,9 @@ class ThemeFlowsTest {
     fun readyMadeThemeAppliesInOneTap() = settings {
         val nightShift = ReadyThemes.all.first { it.id == "night-shift" }
         onNodeWithContentDescription(nightShift.name, substring = true).performClick()
-        waitForLook { it == nightShift.look }
+        // It comes with a wallpaper: keep ours, take the rest.
+        onNodeWithText("Keep mine").performClick()
+        waitForLook { it.sameStyle(nightShift.look) && it.wallpaper == null }
     }
 
     @Test

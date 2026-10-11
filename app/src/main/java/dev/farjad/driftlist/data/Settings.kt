@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.data
 
+import androidx.datastore.preferences.core.intPreferencesKey
 import dev.farjad.driftlist.domain.SearchEngine
 import androidx.datastore.preferences.core.floatPreferencesKey
 import dev.farjad.driftlist.ui.theme.SizeTokens
@@ -63,6 +64,8 @@ data class SettingsSnapshot(
     val shortcutsHidden: Set<String> = emptySet(),
     /** Favorites folders also listed as categories at the end of the A-Z list. */
     val foldersInList: Boolean = false,
+    /** 0 off, 1 light, 2 strong (Android 12+ phones that support window blur). */
+    val wallpaperBlur: Int = 0,
 )
 
 class Settings(private val context: Context) {
@@ -98,6 +101,7 @@ class Settings(private val context: Context) {
         val replaceClock = booleanPreferencesKey("replace_clock")
         val shortcutsHidden = stringSetPreferencesKey("shortcuts_hidden")
         val foldersInList = booleanPreferencesKey("folders_in_list")
+        val wallpaperBlur = intPreferencesKey("wallpaper_blur")
     }
 
     private val booleanKeys = mapOf(
@@ -160,6 +164,7 @@ class Settings(private val context: Context) {
             replaceClock = p[Keys.replaceClock] ?: false,
             shortcutsHidden = p[Keys.shortcutsHidden].orEmpty(),
             foldersInList = p[Keys.foldersInList] ?: false,
+            wallpaperBlur = (p[Keys.wallpaperBlur] ?: 0).coerceIn(0, 2),
         )
     }
 
@@ -187,6 +192,8 @@ class Settings(private val context: Context) {
     suspend fun setHeaderPosition(ratio: Float) = context.dataStore.edit {
         it[Keys.headerPosition] = ratio.coerceIn(SizeTokens.headerPositionMin, SizeTokens.headerPositionMax)
     }
+
+    suspend fun setWallpaperBlur(level: Int) = context.dataStore.edit { it[Keys.wallpaperBlur] = level.coerceIn(0, 2) }
 
     suspend fun setShortcutsHidden(appId: String, hidden: Boolean) = context.dataStore.edit {
         val current = it[Keys.shortcutsHidden].orEmpty()
@@ -219,6 +226,7 @@ class Settings(private val context: Context) {
         (values["look"] as? String)?.let { p[Keys.look] = it }
         (values["search_engine"] as? String)?.let { p[Keys.searchEngine] = it }
         (values["button_swipe_target"] as? String)?.let { p[Keys.buttonSwipeTarget] = it }
+        (values["wallpaper_blur"] as? Number)?.let { p[Keys.wallpaperBlur] = it.toInt() }
         (values["shortcuts_hidden"] as? org.json.JSONArray)?.let { arr -> p[Keys.shortcutsHidden] = (0 until arr.length()).map(arr::getString).toSet() }
         @Suppress("UNCHECKED_CAST")
         (values["shortcuts_hidden"] as? Collection<String>)?.let { p[Keys.shortcutsHidden] = it.toSet() }

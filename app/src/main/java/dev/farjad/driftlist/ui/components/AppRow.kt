@@ -1,5 +1,15 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.ui.draw.alpha
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
+import dev.farjad.driftlist.data.IconStyle
+import dev.farjad.driftlist.domain.Palette
+import dev.farjad.driftlist.ui.theme.LocalIconStyle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.graphics.Rect
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -115,6 +125,7 @@ fun LauncherRow(
     labelSuffix: String? = null,
     showDetailsButton: Boolean = false,
     modifier: Modifier = Modifier,
+    dot: @Composable () -> Unit = { HomeDot(LocalHomeColors.current.text) },
 ) {
     val colors = LocalHomeColors.current
     val haptics = LocalHapticFeedback.current
@@ -170,7 +181,11 @@ fun LauncherRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
     ) {
-        icon(iconSize)
+        when (LocalIconStyle.current) {
+            IconStyle.Icons -> icon(iconSize)
+            IconStyle.Dots -> Box(Modifier.size(SizeTokens.iconDotBox), contentAlignment = Alignment.Center) { dot() }
+            IconStyle.None -> Unit
+        }
         Column(Modifier.weight(1f)) {
             Text(
                 if (labelSuffix != null) "$label \u00B7 $labelSuffix" else label,
@@ -212,19 +227,26 @@ fun AppRow(
     onSwipeRight: (Rect?) -> Unit,
     modifier: Modifier = Modifier,
     previewAge: String? = null,
+    spokenLabel: String = app.label,
+    paused: Boolean = false,
 ) {
     LauncherRow(
         label = app.label,
         variant = variant,
         icon = { size -> AppIcon(app.id, icons, size) },
-        preview = preview,
-        a11yLabel = if (notificationCount > 0) "${app.label}, $notificationCount notifications" else app.label,
+        preview = if (paused) "Work apps are paused. Tap to turn them on" else preview,
+        a11yLabel = when {
+            paused -> "$spokenLabel, paused"
+            notificationCount > 0 -> "$spokenLabel, $notificationCount notifications"
+            else -> spokenLabel
+        },
         onClick = onClick,
         onLongClick = onLongClick,
         onSwipeRight = onSwipeRight,
         labelSuffix = if (notificationCount > 0) previewAge else null,
         showDetailsButton = notificationCount > 0,
-        modifier = modifier,
+        modifier = if (paused) modifier.alpha(PAUSED_ALPHA) else modifier,
+        dot = { AppDot(app.id, icons) },
     )
 }
 
@@ -249,5 +271,46 @@ fun FolderRow(
         onLongClick = onLongClick,
         onSwipeRight = null,
         modifier = modifier,
+        dot = { HomeDot(LocalHomeColors.current.text, ring = true) },
     )
 }
+
+/** The Dots icon style: a small dot in [color]. */
+@Composable
+fun HomeDot(color: Color, ring: Boolean = false) {
+    Box(
+        Modifier
+            .size(SizeTokens.iconDot)
+            .clip(CircleShape)
+            .then(if (ring) Modifier.border(SpaceTokens.s1, color, CircleShape) else Modifier.background(color)),
+    )
+}
+
+/** A dot in the app's own colour: the average of its icon, nudged to stay visible on the wallpaper. */
+@Composable
+fun AppDot(appId: String, icons: IconCache) {
+    val fallback = LocalHomeColors.current.text
+    val color by produceState(fallback, appId) {
+        value = withContext(Dispatchers.Default) {
+            icons.load(appId, DOT_SAMPLE_PX)?.let { averageColor(it.asAndroidBitmap()) } ?: fallback
+        }
+    }
+    HomeDot(color)
+}
+
+private fun averageColor(bmp: android.graphics.Bitmap): Color {
+    var r = 0L; var g = 0L; var b = 0L; var n = 0L
+    for (x in 0 until bmp.width) for (y in 0 until bmp.height) {
+        val p = bmp.getPixel(x, y)
+        if ((p ushr 24) < 128) continue
+        r += (p shr 16) and 0xFF; g += (p shr 8) and 0xFF; b += p and 0xFF; n++
+    }
+    if (n == 0L) return Color.White
+    val (h, s, _) = Palette.hsl((0xFF shl 24) or ((r / n).toInt() shl 16) or ((g / n).toInt() shl 8) or (b / n).toInt())
+    // Mid lightness, decent saturation: readable on dark and light wallpapers alike.
+    return Color(Palette.fromHsl(h, s.coerceIn(0.35f, 0.9f), 0.6f))
+}
+
+private const val DOT_SAMPLE_PX = 12
+
+private const val PAUSED_ALPHA = 0.5f

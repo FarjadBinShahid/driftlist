@@ -1,5 +1,8 @@
 package dev.farjad.driftlist
 
+import android.view.WindowManager
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.content.pm.ActivityInfo
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -50,6 +53,9 @@ class MainActivity : ComponentActivity() {
             val display by remember { vm.state.map { it.settings.allowRotation to it.settings.hideStatusBar }.distinctUntilChanged() }
                 .collectAsStateWithLifecycle(initialValue = false to false)
             LaunchedEffect(display) { applyDisplay(display.first, display.second) }
+            val blur by remember { vm.state.map { it.settings.wallpaperBlur }.distinctUntilChanged() }
+                .collectAsStateWithLifecycle(initialValue = 0)
+            LaunchedEffect(blur) { applyBlur(blur) }
             LaunchedEffect(wallpaper.darkText) {
                 darkText = wallpaper.darkText
                 applySystemBars()
@@ -134,6 +140,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /** Blurs the wallpaper behind home with the system's window blur (Android 12+, where supported). */
+    private fun applyBlur(level: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        if (!windowManager.isCrossWindowBlurEnabled) return
+        val dp = when (level) {
+            1 -> BLUR_LIGHT_DP
+            2 -> BLUR_STRONG_DP
+            else -> 0
+        }
+        val px = (dp * resources.displayMetrics.density).toInt()
+        // The compositor only blurs behind a window that has some background and asks for it.
+        window.setBackgroundDrawable(ColorDrawable(if (px > 0) BLUR_TINT else Color.TRANSPARENT))
+        window.attributes = window.attributes.apply {
+            if (px > 0) flags = flags or WindowManager.LayoutParams.FLAG_BLUR_BEHIND else flags = flags and WindowManager.LayoutParams.FLAG_BLUR_BEHIND.inv()
+            blurBehindRadius = px
+        }
+        window.setBackgroundBlurRadius(px)
+    }
+
     private fun applySystemBars() {
         val style = if (darkText) {
             SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
@@ -145,5 +170,9 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val REQUEST_CONFIGURE = 0x41D
+        const val BLUR_LIGHT_DP = 12
+        const val BLUR_STRONG_DP = 32
+        /** Nearly invisible: enough for the compositor to treat the window as having a background. */
+        const val BLUR_TINT = 0x01000000
     }
 }

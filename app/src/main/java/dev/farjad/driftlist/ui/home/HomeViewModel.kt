@@ -107,6 +107,9 @@ data class HomeUiState(
     val torchOn: Boolean = false,
     /** Music apps to offer while headphones are connected (Plug and Play). */
     val musicApps: List<AppEntity> = emptyList(),
+    /** Profiles (work, dual apps) other than the main one, and which are paused. */
+    val otherProfiles: Set<Long> = emptySet(),
+    val pausedProfiles: Set<Long> = emptySet(),
 ) {
     val headerWidget: WidgetEntity? get() = headerWidgets.firstOrNull()
 }
@@ -205,9 +208,13 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         container.media.state,
         agendaFlow(),
         container.calendar.access,
-        combine(container.torch.on, container.headphones.connected) { torch, phones -> torch to phones },
-    ) { s, media, agenda, calendarAccess, (torch, phones) ->
+        combine(container.torch.on, container.headphones.connected, container.catalog.otherProfiles, container.catalog.paused) { torch, phones, others, paused ->
+            Devices(torch, phones, others, paused)
+        },
+    ) { s, media, agenda, calendarAccess, (torch, phones, others, paused) ->
         s.copy(
+            otherProfiles = others,
+            pausedProfiles = paused,
             media = media,
             agenda = agenda,
             calendarAccess = calendarAccess,
@@ -306,6 +313,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         container.catalog.launchStoredShortcut(t.packageName, t.shortcutId, t.userSerial, bounds)
 
     fun torchOff() = container.torch.turnOff()
+
+    fun profileLabel(app: AppEntity): String = container.catalog.profileLabel(app)
+    fun setWorkPaused(paused: Boolean) = container.catalog.setProfilesPaused(paused)
 
     private var musicPackages: Set<String>? = null
 
@@ -608,3 +618,5 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 /** Same sections and letters; inside each letter, most-opened first (ties keep A-Z order). */
 private fun AppListModel.mostUsedFirst(): AppListModel =
     copy(sections = sections.map { sec -> sec.copy(apps = sec.apps.sortedByDescending { it.launchCount }) })
+
+private data class Devices(val torch: Boolean, val headphones: Boolean, val otherProfiles: Set<Long>, val paused: Set<Long>)

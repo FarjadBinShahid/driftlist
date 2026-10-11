@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.theme
 
+import dev.farjad.driftlist.data.IconStyle
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +94,7 @@ fun DriftlistTheme(look: Look = Look(), wallpaperSeed: Int? = null, content: @Co
     CompositionLocalProvider(
         LocalHomeType provides HomeType(family, look.fontScale),
         LocalClockStyle provides look.clockStyle,
+        LocalIconStyle provides look.iconStyle,
     ) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
@@ -122,6 +124,7 @@ data class HomeType(val family: FontFamily = FontFamily.Default, val scale: Floa
 
 val LocalHomeType = staticCompositionLocalOf { HomeType() }
 val LocalClockStyle = staticCompositionLocalOf { ClockStyle.Thin }
+val LocalIconStyle = staticCompositionLocalOf { IconStyle.Icons }
 
 /** System families by name; imported files from app storage. Anything unreadable falls back to the default. */
 fun fontFamilyFor(context: Context, id: String): FontFamily = runCatching {

@@ -129,6 +129,9 @@ object SizeTokens {
     const val headerPositionMax = 0.4f
     const val fontScaleMin = 0.85f
     const val fontScaleMax = 1.3f
+    val wallpaperThumbSmall = 64.dp
+    val iconDot = 12.dp
+    val iconDotBox = 24.dp
 }
 
 object RadiusTokens {

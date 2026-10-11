@@ -11,6 +11,13 @@ enum class ClockStyle(val label: String, val description: String) {
     Mono("Mono", "Fixed-width digits"),
 }
 
+/** How apps are drawn on home: their icons, a small coloured dot, or text only. */
+enum class IconStyle(val label: String) {
+    Icons("Icons"),
+    Dots("Dots"),
+    None("Text only"),
+}
+
 enum class ThemeMode(val label: String) {
     Auto("Follow system"),
     Light("Light"),
@@ -27,13 +34,21 @@ data class Look(
     val fontScale: Float = 1f,
     val accent: Int? = null,
     val mode: ThemeMode = ThemeMode.Auto,
+    val iconStyle: IconStyle = IconStyle.Icons,
+    /** One of Driftlist's own wallpapers ("art:<name>"), or null to leave the wallpaper alone. */
+    val wallpaper: String? = null,
 ) {
+    /** Same look apart from the wallpaper (a theme applied without its wallpaper still counts). */
+    fun sameStyle(other: Look) = copy(wallpaper = null) == other.copy(wallpaper = null)
+
     fun toJson(): String = JSONObject()
         .put("clock", clockStyle.name)
         .put("font", font)
         .put("font_scale", fontScale.toDouble())
         .put("accent", accent ?: JSONObject.NULL)
         .put("mode", mode.name)
+        .put("icons", iconStyle.name)
+        .put("wallpaper", wallpaper ?: JSONObject.NULL)
         .toString()
 
     /** One line for lists: "Bold clock · Serif · Coral". */
@@ -54,6 +69,8 @@ data class Look(
                     fontScale = o.optDouble("font_scale", 1.0).toFloat().coerceIn(0.5f, 2f),
                     accent = if (o.isNull("accent") || !o.has("accent")) null else o.getInt("accent"),
                     mode = enumOr(o.optString("mode"), ThemeMode.Auto),
+                    iconStyle = enumOr(o.optString("icons"), IconStyle.Icons),
+                    wallpaper = if (o.isNull("wallpaper") || !o.has("wallpaper")) null else o.getString("wallpaper").takeIf { it.startsWith("art:") },
                 )
             }.getOrDefault(Look())
         }
@@ -130,11 +147,11 @@ data class ReadyTheme(val id: String, val name: String, val description: String,
 object ReadyThemes {
     val all: List<ReadyTheme> = listOf(
         ReadyTheme("driftlist", "Driftlist", "Thin clock, colours from your wallpaper", Look()),
-        ReadyTheme("ink", "Ink", "Lora serif, graphite, always light", Look(ClockStyle.Thin, "font:lora", 1f, Accents.presets[7].second, ThemeMode.Light)),
-        ReadyTheme("night-shift", "Night shift", "Bebas Neue, warm amber, always dark", Look(ClockStyle.Bold, "font:bebas_neue", 1.05f, Accents.presets[3].second, ThemeMode.Dark)),
-        ReadyTheme("terminal", "Terminal", "JetBrains Mono everywhere, teal", Look(ClockStyle.Mono, "font:jetbrains_mono", 1f, Accents.presets[1].second, ThemeMode.Dark)),
-        ReadyTheme("postcard", "Postcard", "Stacked clock, handwritten Caveat, coral", Look(ClockStyle.Stacked, "font:caveat", 1.1f, Accents.presets[4].second, ThemeMode.Auto)),
-        ReadyTheme("quiet", "Quiet", "Small clock, Manrope, sage", Look(ClockStyle.Compact, "font:manrope", 1f, Accents.presets[2].second, ThemeMode.Auto)),
-        ReadyTheme("gallery", "Gallery", "Playfair Display, rose, always light", Look(ClockStyle.Thin, "font:playfair_display", 1f, Accents.presets[5].second, ThemeMode.Light)),
+        ReadyTheme("ink", "Ink", "Lora serif, graphite, foggy wallpaper", Look(ClockStyle.Thin, "font:lora", 1f, Accents.presets[7].second, ThemeMode.Light, wallpaper = "art:fog")),
+        ReadyTheme("night-shift", "Night shift", "Bebas Neue, warm amber, ember wallpaper", Look(ClockStyle.Bold, "font:bebas_neue", 1.05f, Accents.presets[3].second, ThemeMode.Dark, wallpaper = "art:ember")),
+        ReadyTheme("terminal", "Terminal", "JetBrains Mono, teal, dots for icons", Look(ClockStyle.Mono, "font:jetbrains_mono", 1f, Accents.presets[1].second, ThemeMode.Dark, IconStyle.Dots, "art:ink")),
+        ReadyTheme("postcard", "Postcard", "Stacked clock, handwritten Caveat, dunes", Look(ClockStyle.Stacked, "font:caveat", 1.1f, Accents.presets[4].second, ThemeMode.Auto, wallpaper = "art:dunes")),
+        ReadyTheme("quiet", "Quiet", "Small clock, Manrope, text only", Look(ClockStyle.Compact, "font:manrope", 1f, Accents.presets[2].second, ThemeMode.Auto, IconStyle.None, "art:meadow")),
+        ReadyTheme("gallery", "Gallery", "Playfair Display, rose, dusk wallpaper", Look(ClockStyle.Thin, "font:playfair_display", 1f, Accents.presets[5].second, ThemeMode.Light, wallpaper = "art:dusk")),
     )
 }

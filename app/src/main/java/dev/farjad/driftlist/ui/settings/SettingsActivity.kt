@@ -1,5 +1,9 @@
 package dev.farjad.driftlist.ui.settings
 
+import androidx.compose.runtime.produceState
+import dev.farjad.driftlist.domain.ThemeFile
+import dev.farjad.driftlist.ui.components.IconPickerSheet
+import dev.farjad.driftlist.system.WallpaperArt
 import dev.farjad.driftlist.domain.SearchEngine
 import dev.farjad.driftlist.data.Fonts
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -168,6 +172,23 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     // --- look and themes ---
     fun setLook(look: Look) = viewModelScope.launch { c.settings.setLook(look) }
+
+    /** Applies a look; with [useWallpaper], also sets its wallpaper on the home screen. */
+    fun applyLook(look: Look, useWallpaper: Boolean) = viewModelScope.launch {
+        val current = state.value.settings.look
+        val next = if (useWallpaper) look else look.copy(wallpaper = current.wallpaper)
+        c.settings.setLook(next)
+        val art = next.wallpaper
+        if (useWallpaper && art != null && art != current.wallpaper) WallpaperArt.apply(getApplication(), art, WallpaperArt.Target.Home)
+    }
+
+    suspend fun setWallpaper(id: String, target: WallpaperArt.Target): Boolean {
+        val ok = WallpaperArt.apply(getApplication(), id, target)
+        if (ok && target != WallpaperArt.Target.Lock) c.settings.setLook(state.value.settings.look.copy(wallpaper = id))
+        return ok
+    }
+
+    fun setWallpaperBlur(level: Int) = viewModelScope.launch { c.settings.setWallpaperBlur(level) }
     fun setHeaderPosition(ratio: Float) = viewModelScope.launch { c.settings.setHeaderPosition(ratio) }
     fun importedFonts(): List<String> = FontStore.imported(getApplication())
     suspend fun importFont(context: Context, uri: Uri): Result<String> = withContext(Dispatchers.IO) { FontStore.import(context, uri) }
@@ -183,12 +204,57 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     /** Applies a saved theme: its look, and its icon pack if that pack is still installed. */
     fun applyTheme(theme: ThemeEntity) = viewModelScope.launch {
-        c.settings.setLook(Look.fromJson(theme.look))
+        val look = Look.fromJson(theme.look)
+        val previous = state.value.settings.look.wallpaper
+        c.settings.setLook(look)
+        look.wallpaper?.takeIf { it != previous }?.let { WallpaperArt.apply(getApplication(), it, WallpaperArt.Target.Home) }
         when (val pack = theme.iconPack) {
             null -> Unit
             ThemeEntity.ICONS_SYSTEM -> c.settings.setIconPack(null)
             else -> if (iconPacks().any { it.packageName == pack }) c.settings.setIconPack(pack)
         }
+    }
+
+    /** Writes the theme to the app cache and opens the share sheet. */
+    fun shareTheme(context: Context, name: String, look: Look, iconPack: String?) {
+        val dir = java.io.File(context.cacheDir, "shared").apply { mkdirs() }
+        val safe = name.replace(Regex("[^A-Za-z0-9 _-]"), "_").trim().ifEmpty { "Theme" }
+        val file = java.io.File(dir, safe + ThemeFile.EXTENSION)
+        file.writeText(ThemeFile.write(name, look, iconPack))
+        val uri = androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+            .setType(ThemeFile.MIME)
+            .putExtra(android.content.Intent.EXTRA_STREAM, uri)
+            .putExtra(android.content.Intent.EXTRA_SUBJECT, "$name (Driftlist theme)")
+            .addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        SystemActions.start(context, android.content.Intent.createChooser(send, "Share $name"))
+    }
+
+    /** Reads a theme file into My themes. */
+    suspend fun importTheme(context: Context, uri: Uri): Result<ThemeFile.Parsed> = withContext(Dispatchers.IO) {
+        runCatching {
+            val text = context.contentResolver.openInputStream(uri)!!.use { input ->
+                val bytes = input.readNBytesCompat(ThemeFile.MAX_BYTES + 1)
+                bytes.toString(Charsets.UTF_8)
+            }
+            ThemeFile.read(text).getOrThrow().also { parsed ->
+                val now = System.currentTimeMillis()
+                c.db.themeDao().upsert(ThemeEntity(java.util.UUID.randomUUID().toString(), parsed.name, parsed.look.toJson(), parsed.iconPack, now, now))
+            }
+        }
+    }
+
+    /** Apps the current icon pack has no icon for (and that the user hasn't picked one for). */
+    suspend fun uncoveredApps(pack: String): List<AppEntity> = withContext(Dispatchers.IO) {
+        val overrides = c.db.iconOverrideDao().all().filter { it.iconPack == pack }.mapTo(HashSet()) { it.appId }
+        state.value.apps.filter { app ->
+            !app.hidden && app.id !in overrides &&
+                c.iconPacks.drawableFor(pack, android.content.ComponentName(app.packageName, app.activityClass).flattenToString()) == null
+        }
+    }
+
+    fun setIcon(app: AppEntity, pack: String, drawableName: String?) = viewModelScope.launch {
+        if (drawableName == null) c.db.iconOverrideDao().delete(app.id, pack) else c.db.iconOverrideDao().set(app.id, pack, drawableName, System.currentTimeMillis())
     }
 
     fun renameTheme(theme: ThemeEntity, name: String) = viewModelScope.launch { c.db.themeDao().rename(theme.id, name, System.currentTimeMillis()) }
@@ -226,6 +292,7 @@ internal enum class Page(val title: String, val parent: Page? = null) {
     IconPack("Icon pack", Look),
     Studio("Theme Studio", Look),
     MyThemes("My themes", Look),
+    Wallpaper("Wallpaper", Look),
     FontLicences("Font licences", About),
     TimeChecks("Time checks", Wellbeing),
     Summary("Notification Summary", Wellbeing),
@@ -287,6 +354,7 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
             Page.Look -> LookHubPage(vm, state, padding, onNavigate = { page = it })
             Page.Studio -> ThemeStudioPage(vm, state, padding, snackbar)
             Page.MyThemes -> MyThemesPage(vm, state, padding, snackbar)
+            Page.Wallpaper -> WallpaperPage(vm, state, padding, snackbar)
             Page.Wellbeing -> WellbeingPage(state, padding, onNavigate = { page = it })
             Page.Backup -> BackupPage(vm, padding, snackbar)
             Page.About -> AboutPage(padding, onNavigate = { page = it })
@@ -731,15 +799,46 @@ private fun HiddenAppsPage(vm: SettingsViewModel, state: SettingsUiState, paddin
 private fun IconPackPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
     val context = LocalContext.current
     val packs = remember { vm.iconPacks() }
+    var picking by remember { mutableStateOf<AppEntity?>(null) }
+    var refresh by remember { mutableStateOf(0) }
+    val uncovered by produceState(emptyList<AppEntity>(), state.settings.iconPack, state.apps, refresh) {
+        value = state.settings.iconPack?.let { vm.uncoveredApps(it) }.orEmpty()
+    }
+    picking?.let { app ->
+        val pack = state.settings.iconPack
+        IconPickerSheet(
+            app = app,
+            icons = vm.icons,
+            pack = pack,
+            packLabel = packs.firstOrNull { it.packageName == pack }?.label,
+            onPick = { name -> pack?.let { vm.setIcon(app, it, name) }; picking = null; refresh++ },
+            onOpenIconSettings = { picking = null },
+            onClose = { picking = null },
+        )
+    }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item { ChoiceRow("System icons", state.settings.iconPack == null) { vm.setIconPack(null) } }
         items(packs, key = { it.packageName }) { pack ->
             ChoiceRow(pack.label, state.settings.iconPack == pack.packageName) { vm.setIconPack(pack.packageName) }
         }
+        val pack = state.settings.iconPack
+        if (pack != null) {
+            item { SectionHeader(if (uncovered.isEmpty()) "Every app has an icon from this pack" else "Not in this pack (${uncovered.size})") }
+            if (uncovered.isNotEmpty()) {
+                item {
+                    Text(
+                        "These keep their own icon. Tap one to pick a close match from the pack.",
+                        style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                        modifier = Modifier.padding(horizontal = SpaceTokens.s7),
+                    )
+                }
+            }
+            items(uncovered, key = { "u:" + it.id }) { app -> SheetAppRow(app, vm.icons, onClick = { picking = app }) }
+        }
         item {
             Column(Modifier.padding(SpaceTokens.s7)) {
                 Text(
-                    if (packs.isEmpty()) "No icon packs installed yet." else "Icons the pack doesn't cover keep their normal look. Long-press an app and choose Change icon to pick one yourself.",
+                    if (packs.isEmpty()) "No icon packs installed yet." else "Long-press any app on home and choose Change icon to pick one yourself.",
                     style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
                 )
                 TextButton(onClick = {
@@ -882,4 +981,15 @@ internal fun ChoiceRow(title: String, selected: Boolean, onClick: () -> Unit) {
         RadioButton(selected = selected, onClick = null)
         Text(title, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface), modifier = Modifier.padding(start = SpaceTokens.s4))
     }
+}
+
+private fun java.io.InputStream.readNBytesCompat(max: Int): ByteArray {
+    val out = java.io.ByteArrayOutputStream()
+    val buf = ByteArray(8192)
+    while (out.size() < max) {
+        val n = read(buf, 0, minOf(buf.size, max - out.size()))
+        if (n < 0) break
+        out.write(buf, 0, n)
+    }
+    return out.toByteArray()
 }
