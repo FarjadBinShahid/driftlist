@@ -1,5 +1,6 @@
 package dev.farjad.driftlist
 
+import dev.farjad.driftlist.system.search.ContactSearch
 import dev.farjad.driftlist.system.WallpaperWatcher
 import dev.farjad.driftlist.system.calendar.CalendarSource
 import android.app.Application
@@ -41,6 +42,7 @@ class AppContainer(context: Context) {
     val media = MediaHub(context)
     val calendar = CalendarSource(context)
     val wallpaper = WallpaperWatcher(context)
+    val contacts = ContactSearch(context)
     val summary = NotificationSummary(context, db, scope)
     val backup = Backup(db, settings)
 }

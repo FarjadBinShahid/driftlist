@@ -1,5 +1,9 @@
 package dev.farjad.driftlist
 
+import android.content.pm.ActivityInfo
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -43,6 +47,9 @@ class MainActivity : ComponentActivity() {
             val wallpaper by container.wallpaper.state.collectAsStateWithLifecycle()
             val look by remember { vm.state.map { it.settings.look }.distinctUntilChanged() }
                 .collectAsStateWithLifecycle(initialValue = vm.state.value.settings.look)
+            val display by remember { vm.state.map { it.settings.allowRotation to it.settings.hideStatusBar }.distinctUntilChanged() }
+                .collectAsStateWithLifecycle(initialValue = false to false)
+            LaunchedEffect(display) { applyDisplay(display.first, display.second) }
             LaunchedEffect(wallpaper.darkText) {
                 darkText = wallpaper.darkText
                 applySystemBars()
@@ -107,6 +114,23 @@ class MainActivity : ComponentActivity() {
         if (requestCode == REQUEST_CONFIGURE) {
             pendingConfigure?.invoke(resultCode == Activity.RESULT_OK)
             pendingConfigure = null
+        }
+    }
+
+    /**
+     * Portrait unless the user allows rotation (tablets and foldables always rotate). The status bar
+     * can be hidden on home; a swipe from the top shows it for a moment.
+     */
+    private fun applyDisplay(allowRotation: Boolean, hideStatusBar: Boolean) {
+        val large = resources.configuration.smallestScreenWidthDp >= 600
+        requestedOrientation = if (allowRotation || large) {
+            ActivityInfo.SCREEN_ORIENTATION_FULL_USER
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+        }
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            if (hideStatusBar) hide(WindowInsetsCompat.Type.statusBars()) else show(WindowInsetsCompat.Type.statusBars())
         }
     }
 

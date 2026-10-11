@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.settings
 
+import dev.farjad.driftlist.domain.SearchEngine
 import dev.farjad.driftlist.data.Fonts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.SideEffect
@@ -144,6 +145,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSearchIncludesHidden(v: Boolean) = viewModelScope.launch { c.settings.setSearchIncludesHidden(v) }
     fun setUsageBreaker(v: Boolean) = viewModelScope.launch { c.settings.setUsageBreaker(v) }
     fun setFavoritesAtBottom(v: Boolean) = viewModelScope.launch { c.settings.setFavoritesAtBottom(v) }
+    fun setSearchEngine(engine: SearchEngine) = viewModelScope.launch { c.settings.setSearchEngine(engine) }
+    fun hasContactsAccess() = c.contacts.hasPermission()
     fun setFlag(name: String, v: Boolean) = viewModelScope.launch { c.settings.setFlag(name, v) }
     fun setButtonTarget(target: String?) = viewModelScope.launch { c.settings.setButtonTarget(target) }
     fun unhide(app: AppEntity) = viewModelScope.launch { c.db.appDao().setHidden(app.id, false, System.currentTimeMillis()) }
@@ -219,6 +222,7 @@ internal enum class Page(val title: String, val parent: Page? = null) {
     About("About", Root),
     HiddenApps("Hidden apps", Home),
     Calendars("Calendars", Home),
+    SearchEngines("Search engine", Gestures),
     IconPack("Icon pack", Look),
     Studio("Theme Studio", Look),
     MyThemes("My themes", Look),
@@ -278,7 +282,8 @@ private fun SettingsScreen(vm: SettingsViewModel, onExit: () -> Unit) {
         when (page) {
             Page.Root -> RootPage(vm, state, padding, onNavigate = { page = it })
             Page.Home -> HomePage(vm, state, padding, onNavigate = { page = it })
-            Page.Gestures -> GesturesPage(vm, state, padding)
+            Page.Gestures -> GesturesPage(vm, state, padding, onNavigate = { page = it })
+            Page.SearchEngines -> SearchEnginePage(vm, state, padding)
             Page.Look -> LookHubPage(vm, state, padding, onNavigate = { page = it })
             Page.Studio -> ThemeStudioPage(vm, state, padding, snackbar)
             Page.MyThemes -> MyThemesPage(vm, state, padding, snackbar)
@@ -409,6 +414,27 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
             }
         }
         item { NavRow("Hidden apps", if (hiddenCount == 0) "None" else "$hiddenCount hidden") { onNavigate(Page.HiddenApps) } }
+        item {
+            ToggleRow("Most used first", "In the A-Z list, the apps you open most come first within each letter", s.listSortUsage) {
+                vm.setFlag("list_sort_usage", it)
+            }
+        }
+        item {
+            ToggleRow("Quick replies", "Reply to messages from the pop-up without opening the app", s.quickReplies) {
+                vm.setFlag("quick_replies", it)
+            }
+        }
+        item { SectionHeader("Display") }
+        item {
+            ToggleRow("Rotate with the phone", "Off: home stays upright. Tablets and foldables always rotate", s.allowRotation) {
+                vm.setFlag("allow_rotation", it)
+            }
+        }
+        item {
+            ToggleRow("Hide the status bar", "Swipe down from the top edge to see it for a moment", s.hideStatusBar) {
+                vm.setFlag("hide_status_bar", it)
+            }
+        }
         item { SectionHeader("Clock position") }
         item {
             Column(Modifier.padding(horizontal = SpaceTokens.s7)) {
@@ -441,6 +467,22 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
 }
 
 @Composable
+private fun SearchEnginePage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
+        items(SearchEngine.entries, key = { it.name }) { engine ->
+            ChoiceRow(engine.label, state.settings.searchEngine == engine) { vm.setSearchEngine(engine) }
+        }
+        item {
+            Text(
+                "Used for “Search the web” in search. Live suggestions are a separate switch and are off unless you turn them on.",
+                style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant),
+                modifier = Modifier.padding(SpaceTokens.s7),
+            )
+        }
+    }
+}
+
+@Composable
 private fun CalendarsPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
     val calendars = remember { vm.calendars() }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
@@ -462,7 +504,7 @@ private fun CalendarsPage(vm: SettingsViewModel, state: SettingsUiState, padding
 }
 
 @Composable
-private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues) {
+private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding: PaddingValues, onNavigate: (Page) -> Unit) {
     val context = LocalContext.current
     val s = state.settings
     var hasLock by remember { mutableStateOf(vm.hasQuickLock()) }
@@ -470,6 +512,9 @@ private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding:
     LifecycleResumeEffect(Unit) {
         hasLock = vm.hasQuickLock()
         onPauseOrDispose { }
+    }
+    val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        vm.setFlag("search_contacts", granted)
     }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item {
@@ -482,6 +527,27 @@ private fun GesturesPage(vm: SettingsViewModel, state: SettingsUiState, padding:
         item {
             ToggleRow("Find hidden apps in search", "Hidden apps stay out of the list but can still be searched", s.searchIncludesHidden) {
                 vm.setFlag("search_includes_hidden", it)
+            }
+        }
+        item { NavRow("Search engine", s.searchEngine.label) { onNavigate(Page.SearchEngines) } }
+        item {
+            ToggleRow(
+                "Web suggestions while you type",
+                if (s.searchEngine.hasSuggestions) {
+                    "What you type in search is sent to ${s.searchEngine.label} for suggestions. Off: nothing leaves your phone"
+                } else {
+                    "Pick a search engine first"
+                },
+                s.webSuggestions && s.searchEngine.hasSuggestions,
+            ) { if (s.searchEngine.hasSuggestions) vm.setFlag("web_suggestions", it) }
+        }
+        item {
+            ToggleRow("Search contacts", "Find people in search, then call or message them", s.searchContacts && vm.hasContactsAccess()) { on ->
+                when {
+                    !on -> vm.setFlag("search_contacts", false)
+                    vm.hasContactsAccess() -> vm.setFlag("search_contacts", true)
+                    else -> contactsPermission.launch(Manifest.permission.READ_CONTACTS)
+                }
             }
         }
         item {
@@ -615,7 +681,7 @@ private fun BackupPage(vm: SettingsViewModel, padding: PaddingValues, snackbar: 
 private fun AboutPage(padding: PaddingValues, onNavigate: (Page) -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
         item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher.") {} }
-        item { NavRow("Privacy", "No accounts, no ads, no network. Everything stays on this phone.") {} }
+        item { NavRow("Privacy", "No accounts, no ads. Nothing leaves this phone unless you turn on web suggestions in search.") {} }
         item { NavRow("Font licences", "${Fonts.bundled.size} fonts under the SIL Open Font License") { onNavigate(Page.FontLicences) } }
     }
 }

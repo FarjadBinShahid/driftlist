@@ -1,5 +1,12 @@
 package dev.farjad.driftlist.ui.home
 
+import android.app.SearchManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import dev.farjad.driftlist.domain.SearchEngine
+import dev.farjad.driftlist.system.search.ContactHit
+import dev.farjad.driftlist.system.search.WebSuggester
 import dev.farjad.driftlist.domain.CalEvent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -163,7 +170,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 favoriteAppIds = favoriteIds,
                 allApps = lib.apps,
                 hiddenApps = lib.apps.filter { it.hidden }.sortedBy { it.label.lowercase() },
-                list = lib.list,
+                list = if (settings.listSortUsage) lib.list.mostUsedFirst() else lib.list,
                 notifications = notifications,
                 setup = setup,
                 headerWidgets = header,
@@ -427,6 +434,42 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
     // --- search -----------------------------------------------------------------------------
 
+    fun searchContacts(query: String): List<ContactHit> =
+        if (state.value.settings.searchContacts) container.contacts.search(query) else emptyList()
+
+    fun contactsNeedPermission(): Boolean = state.value.settings.searchContacts && !container.contacts.hasPermission()
+
+    suspend fun webSuggestions(query: String): List<String> {
+        val s = state.value.settings
+        if (!s.webSuggestions || query.trim().length < 2) return emptyList()
+        return WebSuggester.fetch(s.searchEngine, query)
+    }
+
+    fun webSearch(query: String) {
+        val app = getApplication<Application>()
+        val url = state.value.settings.searchEngine.searchUrl(query)
+        val intent = if (url == null) {
+            Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, query)
+        } else {
+            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+        }
+        if (!SystemActions.start(app, intent) && url == null) {
+            SystemActions.start(app, Intent(Intent.ACTION_VIEW, Uri.parse(SearchEngine.DuckDuckGo.searchUrl(query))))
+        }
+    }
+
+    fun openContact(hit: ContactHit) = container.contacts.open(hit)
+    fun callContact(hit: ContactHit) = container.contacts.call(hit)
+    fun messageContact(hit: ContactHit) = container.contacts.message(hit)
+
+    /** Digital Wellbeing's page for one app (Android 10+), when the phone has one. */
+    fun screenTimeIntent(app: AppEntity): Intent? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val intent = Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName)
+        val pm = getApplication<Application>().packageManager
+        return intent.takeIf { it.resolveActivity(pm) != null }
+    }
+
     fun search(query: String): List<AppEntity> {
         val s = state.value
         val pool = if (s.settings.searchIncludesHidden) s.allApps else s.allApps.filterNot { it.hidden }
@@ -466,3 +509,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 }
+
+/** Same sections and letters; inside each letter, most-opened first (ties keep A-Z order). */
+private fun AppListModel.mostUsedFirst(): AppListModel =
+    copy(sections = sections.map { sec -> sec.copy(apps = sec.apps.sortedByDescending { it.launchCount }) })

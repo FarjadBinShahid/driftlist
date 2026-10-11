@@ -88,6 +88,7 @@ fun AppPopupCard(
     onShortcut: (ShortcutInfoItem) -> Unit,
     onShortcutLongPress: (ShortcutInfoItem) -> Unit,
     onClose: () -> Unit,
+    quickReplies: Boolean = true,
 ) {
     val density = LocalDensity.current
     val position = remember(anchor) {
@@ -138,6 +139,7 @@ fun AppPopupCard(
                             onDismiss = { onDismissNotification(item) },
                             onReply = { text -> onReply(item, text) },
                             onAction = onRunAction,
+                            canReply = quickReplies,
                         )
                     }
                     if (notifications.isNotEmpty() && shortcuts.isNotEmpty()) {

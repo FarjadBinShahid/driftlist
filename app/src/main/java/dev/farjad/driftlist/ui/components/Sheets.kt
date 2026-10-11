@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.material.icons.outlined.HourglassEmpty
 import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.Slider
 import androidx.compose.material.icons.outlined.CalendarMonth
@@ -222,6 +223,7 @@ internal fun NotificationCard(
     onDismiss: () -> Unit,
     onReply: (String) -> Boolean,
     onAction: (NotifAction) -> Unit,
+    canReply: Boolean = true,
 ) {
     val state = rememberSwipeToDismissBoxState()
     LaunchedEffect(state.currentValue) {
@@ -285,9 +287,9 @@ internal fun NotificationCard(
                         },
                         maxLines = 4,
                     )
-                } else if (item.replyAction != null || item.buttonActions.isNotEmpty()) {
+                } else if ((canReply && item.replyAction != null) || item.buttonActions.isNotEmpty()) {
                     Row(Modifier.padding(top = SpaceTokens.s2), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s2)) {
-                        if (item.replyAction != null) {
+                        if (canReply && item.replyAction != null) {
                             TextButton(onClick = { replying = true; status = null }) { Text("Reply") }
                         }
                         item.buttonActions.forEach { action ->
@@ -321,6 +323,7 @@ fun AppOptionsSheet(
     onClose: () -> Unit,
     isSuggestion: Boolean = false,
     onStopSuggesting: () -> Unit = {},
+    onScreenTime: (() -> Unit)? = null,
 ) {
     var renaming by rememberSaveable { mutableStateOf(false) }
     var advanced by rememberSaveable { mutableStateOf(false) }
@@ -355,6 +358,7 @@ fun AppOptionsSheet(
             )
             if (isFavorite) OptionRow("Edit favorites", onEditFavorites, icon = Icons.Outlined.Reorder)
             OptionRow("App info", onAppInfo, icon = Icons.Outlined.Info)
+            onScreenTime?.let { OptionRow("Screen time", it, icon = Icons.Outlined.HourglassEmpty, supporting = "How long you've used it, and app timers") }
             if (!app.isSystem) OptionRow("Uninstall", onUninstall, destructive = true, icon = Icons.Outlined.Delete)
             OptionRow(
                 "More",

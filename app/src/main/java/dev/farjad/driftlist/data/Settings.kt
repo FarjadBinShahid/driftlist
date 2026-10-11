@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.data
 
+import dev.farjad.driftlist.domain.SearchEngine
 import androidx.datastore.preferences.core.floatPreferencesKey
 import dev.farjad.driftlist.ui.theme.SizeTokens
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -43,6 +44,15 @@ data class SettingsSnapshot(
     val look: Look = Look(),
     /** Where the clock sits, as a fraction of the screen height from the top ("Move clock"). */
     val headerPosition: Float = SizeTokens.headerTopSpaceRatio,
+    val searchEngine: SearchEngine = SearchEngine.System,
+    /** Off by default: when on, typed search text goes to [searchEngine] for suggestions. */
+    val webSuggestions: Boolean = false,
+    val searchContacts: Boolean = false,
+    /** Within each letter, most-opened apps first. */
+    val listSortUsage: Boolean = false,
+    val quickReplies: Boolean = true,
+    val allowRotation: Boolean = false,
+    val hideStatusBar: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -65,6 +75,13 @@ class Settings(private val context: Context) {
         val hiddenCalendars = stringSetPreferencesKey("hidden_calendars")
         val look = stringPreferencesKey("look")
         val headerPosition = floatPreferencesKey("header_position")
+        val searchEngine = stringPreferencesKey("search_engine")
+        val webSuggestions = booleanPreferencesKey("web_suggestions")
+        val searchContacts = booleanPreferencesKey("search_contacts")
+        val listSortUsage = booleanPreferencesKey("list_sort_usage")
+        val quickReplies = booleanPreferencesKey("quick_replies")
+        val allowRotation = booleanPreferencesKey("allow_rotation")
+        val hideStatusBar = booleanPreferencesKey("hide_status_bar")
     }
 
     private val booleanKeys = mapOf(
@@ -81,6 +98,12 @@ class Settings(private val context: Context) {
         "quick_lock" to Keys.quickLock,
         "notification_summary" to Keys.notificationSummary,
         "calendar_events" to Keys.calendarEvents,
+        "web_suggestions" to Keys.webSuggestions,
+        "search_contacts" to Keys.searchContacts,
+        "list_sort_usage" to Keys.listSortUsage,
+        "quick_replies" to Keys.quickReplies,
+        "allow_rotation" to Keys.allowRotation,
+        "hide_status_bar" to Keys.hideStatusBar,
     )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -104,6 +127,13 @@ class Settings(private val context: Context) {
             look = Look.fromJson(p[Keys.look]),
             headerPosition = (p[Keys.headerPosition] ?: SizeTokens.headerTopSpaceRatio)
                 .coerceIn(SizeTokens.headerPositionMin, SizeTokens.headerPositionMax),
+            searchEngine = SearchEngine.fromName(p[Keys.searchEngine]),
+            webSuggestions = p[Keys.webSuggestions] ?: false,
+            searchContacts = p[Keys.searchContacts] ?: false,
+            listSortUsage = p[Keys.listSortUsage] ?: false,
+            quickReplies = p[Keys.quickReplies] ?: true,
+            allowRotation = p[Keys.allowRotation] ?: false,
+            hideStatusBar = p[Keys.hideStatusBar] ?: false,
         )
     }
 
@@ -123,6 +153,8 @@ class Settings(private val context: Context) {
         val key = booleanKeys[name] ?: error("unknown setting $name")
         context.dataStore.edit { it[key] = value }
     }
+
+    suspend fun setSearchEngine(engine: SearchEngine) = context.dataStore.edit { it[Keys.searchEngine] = engine.name }
 
     suspend fun setLook(look: Look) = context.dataStore.edit { it[Keys.look] = look.toJson() }
 
@@ -150,6 +182,7 @@ class Settings(private val context: Context) {
         (values["icon_pack"] as? String)?.let { p[Keys.iconPack] = it }
         (values["button_target"] as? String)?.let { p[Keys.buttonTarget] = it }
         (values["look"] as? String)?.let { p[Keys.look] = it }
+        (values["search_engine"] as? String)?.let { p[Keys.searchEngine] = it }
         (values["header_position"] as? Number)?.let { p[Keys.headerPosition] = it.toFloat() }
     }
 }

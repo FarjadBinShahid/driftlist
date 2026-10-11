@@ -119,6 +119,22 @@ class HomeFlowsTest {
         }
     }
 
+    // F04-H4: the calculator answers sums typed into search
+    @Test
+    fun searchDoesSums() {
+        TestState.reset()
+        home {
+            openSearch()
+            searchField().performTextInput("12 × (3 + 4)")
+            waitForText("= 84")
+            onNodeWithText("Copy").assertIsDisplayed()
+            searchField().performTextClearance()
+            searchField().performTextInput("clock")
+            waitForText("Clock")
+            assertTrue(onAllNodes(hasText("=", substring = true)).fetchSemanticsNodes().isEmpty())
+        }
+    }
+
     // F04-H1, F04-E1, F04-E5
     @Test
     fun searchFindsAppsAndHandlesNoMatches() {

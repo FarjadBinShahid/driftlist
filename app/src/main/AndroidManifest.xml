@@ -13,6 +13,11 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- Only used when the user turns on live web suggestions in search. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Contact search, opt-in. Read only; nothing is stored. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
     <!-- The next event under the date and the agenda sheet. Read only; nothing is stored. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 

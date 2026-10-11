@@ -1,5 +1,6 @@
 package dev.farjad.driftlist.ui.home
 
+import dev.farjad.driftlist.domain.SearchEngine
 import dev.farjad.driftlist.ui.components.MoveClockSheet
 import android.Manifest
 import android.app.Activity
@@ -196,6 +197,11 @@ fun HomeScreen(
         }
     }
     val agendaOn = state.settings.calendarEvents && state.calendarAccess
+    val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) vm.setFlag("search_contacts", false)
+        // Reopen search so it picks up the new permission.
+        if (overlay == Overlay.Search) { overlay = null; overlay = Overlay.Search }
+    }
 
     // --- widget add flow: allocate -> bind (maybe ask) -> configure (maybe) -> save ---------------
     var pendingWidgetId by remember { mutableStateOf<Int?>(null) }
@@ -369,6 +375,7 @@ fun HomeScreen(
             onReply = vm::reply,
             onRunAction = { action -> vm.runAction(action) },
             onShortcut = { sc -> close(); vm.launchShortcut(sc, o.anchor) },
+            quickReplies = state.settings.quickReplies,
             onShortcutLongPress = { sc -> overlay = Overlay.AddShortcut(o.app, sc) },
             onClose = close,
         )
@@ -400,6 +407,7 @@ fun HomeScreen(
                 onClose = close,
                 isSuggestion = state.suggestions.any { it.id == app.id },
                 onStopSuggesting = { close(); vm.stopSuggesting(app) },
+                onScreenTime = remember(app.id) { vm.screenTimeIntent(app) }?.let { intent -> { close(); SystemActions.start(context, intent) } },
             )
         }
         is Overlay.IconPicker -> {
@@ -530,10 +538,15 @@ fun HomeScreen(
             icons = vm.icons,
             onLaunch = { app -> close(); vm.launch(app, null) },
             onLongPress = { app -> overlay = Overlay.Options(app) },
-            onWebSearch = { q ->
-                close()
-                SystemActions.start(context, Intent(Intent.ACTION_WEB_SEARCH).putExtra(SearchManager.QUERY, q))
-            },
+            onWebSearch = { q -> close(); vm.webSearch(q) },
+            engineLabel = state.settings.searchEngine.takeIf { it != SearchEngine.System }?.label,
+            webSuggestions = vm::webSuggestions,
+            contacts = vm::searchContacts,
+            contactsNeedPermission = remember(state.settings.searchContacts) { vm.contactsNeedPermission() },
+            onAllowContacts = { contactsPermission.launch(Manifest.permission.READ_CONTACTS) },
+            onOpenContact = { hit -> close(); vm.openContact(hit) },
+            onCallContact = { hit -> close(); vm.callContact(hit) },
+            onMessageContact = { hit -> close(); vm.messageContact(hit) },
             onPlaySearch = { q ->
                 close()
                 SystemActions.start(context, Intent(Intent.ACTION_VIEW, android.net.Uri.parse("market://search?q=" + android.net.Uri.encode(q) + "&c=apps")))

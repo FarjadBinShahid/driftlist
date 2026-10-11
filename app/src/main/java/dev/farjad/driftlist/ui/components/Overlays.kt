@@ -1,5 +1,26 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Sms
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import dev.farjad.driftlist.domain.Calculator
+import dev.farjad.driftlist.system.search.ContactHit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import android.appwidget.AppWidgetHostView
 import android.os.Build
 import android.os.Bundle
@@ -49,6 +70,7 @@ import dev.farjad.driftlist.data.db.AppEntity
 import dev.farjad.driftlist.system.apps.IconCache
 import dev.farjad.driftlist.system.widgets.WidgetHostManager
 import dev.farjad.driftlist.ui.theme.RadiusTokens
+import dev.farjad.driftlist.ui.theme.SizeTokens
 import dev.farjad.driftlist.ui.theme.SpaceTokens
 import dev.farjad.driftlist.ui.theme.TypeTokens
 import dev.farjad.driftlist.ui.theme.style
@@ -64,9 +86,29 @@ fun SearchOverlay(
     onWebSearch: (String) -> Unit,
     onPlaySearch: (String) -> Unit,
     onClose: () -> Unit,
+    engineLabel: String? = null,
+    webSuggestions: suspend (String) -> List<String> = { emptyList() },
+    contacts: (String) -> List<ContactHit> = { emptyList() },
+    contactsNeedPermission: Boolean = false,
+    onAllowContacts: () -> Unit = {},
+    onOpenContact: (ContactHit) -> Unit = {},
+    onCallContact: (ContactHit) -> Unit = {},
+    onMessageContact: (ContactHit) -> Unit = {},
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val results = remember(query) { if (query.isBlank()) emptyList() else search(query) }
+    val sum = remember(query) { Calculator.evaluate(query)?.let(Calculator::format) }
+    var people by remember { mutableStateOf(emptyList<ContactHit>()) }
+    var suggested by remember { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(query) {
+        people = if (query.isBlank()) emptyList() else withContext(Dispatchers.IO) { contacts(query) }
+        suggested = emptyList()
+        if (query.isNotBlank() && sum == null) {
+            delay(SUGGEST_DEBOUNCE_MS)
+            suggested = webSuggestions(query)
+        }
+    }
+    val clipboard = LocalClipboardManager.current
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
     BackHandler(onBack = onClose)
@@ -98,21 +140,54 @@ fun SearchOverlay(
                         items(suggestions, key = { "s:" + it.id }) { app -> SheetAppRow(app, icons, onClick = { onLaunch(app) }) }
                     }
                 } else {
+                    if (sum != null) {
+                        item(key = "calc") {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3)
+                                    .semantics(mergeDescendants = true) { contentDescription = "$query equals $sum" },
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("= $sum", style = TypeTokens.title.style(MaterialTheme.colorScheme.onSurface), modifier = Modifier.weight(1f))
+                                TextButton(onClick = { clipboard.setText(AnnotatedString(sum)) }) { Text("Copy") }
+                            }
+                        }
+                    }
                     items(results, key = { it.id }) { app ->
                         val top = app.id == results.firstOrNull()?.id
                         SheetAppRow(app, icons, onClick = { onLaunch(app) }, supporting = if (top) "Enter opens this" else null) {
                             if (app.hidden) Text("Hidden", style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant))
                         }
                     }
+                    if (contactsNeedPermission) {
+                        item(key = "contacts-allow") {
+                            SheetAppRowLike("Search your contacts too", "Allow contacts access", onAllowContacts)
+                        }
+                    }
+                    if (people.isNotEmpty()) {
+                        item { SectionLabel("Contacts") }
+                        items(people, key = { "c:" + it.contactId }) { hit ->
+                            ContactRow(hit, onOpen = { onOpenContact(hit) }, onCall = { onCallContact(hit) }, onMessage = { onMessageContact(hit) })
+                        }
+                    }
+                    if (suggested.isNotEmpty()) {
+                        item { SectionLabel("Web") }
+                        items(suggested, key = { "w:$it" }) { s ->
+                            SheetAppRowLike(s, null) { onWebSearch(s) }
+                        }
+                    }
                     item {
                         Column(Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s4)) {
-                            if (results.isEmpty()) {
+                            if (results.isEmpty() && sum == null && people.isEmpty()) {
                                 Text(
                                     "No apps match “$query”.",
                                     style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurfaceVariant),
                                 )
                             }
-                            TextButton(onClick = { onWebSearch(query) }) { Text("Search the web for “$query”") }
+                            TextButton(onClick = { onWebSearch(query) }) {
+                                Text(if (engineLabel == null) "Search the web for “$query”" else "Search $engineLabel for “$query”")
+                            }
                             TextButton(onClick = { onPlaySearch(query) }) { Text("Find “$query” on Google Play") }
                         }
                     }
@@ -121,6 +196,52 @@ fun SearchOverlay(
         }
     }
 }
+
+/** A plain text row with the same height and padding as an app row. */
+@Composable
+private fun SheetAppRowLike(title: String, supporting: String?, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = SizeTokens.sheetRow)
+            .clickable(onClick = onClick)
+            .padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text(title, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        supporting?.let { Text(it, style = TypeTokens.caption.style(MaterialTheme.colorScheme.primary)) }
+    }
+}
+
+@Composable
+private fun ContactRow(hit: ContactHit, onOpen: () -> Unit, onCall: () -> Unit, onMessage: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = SizeTokens.sheetRow)
+            .clickable(onClickLabel = "Open contact", onClick = onOpen)
+            .padding(start = SpaceTokens.s7, end = SpaceTokens.s3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+    ) {
+        Box(
+            Modifier.size(SizeTokens.iconPopup).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(hit.name.take(1).uppercase(), style = TypeTokens.label.style(MaterialTheme.colorScheme.onPrimaryContainer))
+        }
+        Column(Modifier.weight(1f)) {
+            Text(hit.name, style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            hit.number?.let { Text(it, style = TypeTokens.caption.style(MaterialTheme.colorScheme.onSurfaceVariant)) }
+        }
+        if (hit.number != null) {
+            IconButton(onClick = onCall) { Icon(Icons.Outlined.Call, contentDescription = "Call ${hit.name}") }
+            IconButton(onClick = onMessage) { Icon(Icons.Outlined.Sms, contentDescription = "Message ${hit.name}") }
+        }
+    }
+}
+
+private const val SUGGEST_DEBOUNCE_MS = 250L
 
 @Composable
 private fun SectionLabel(text: String) {
