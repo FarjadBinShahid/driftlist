@@ -6,7 +6,7 @@ Date: 2026-10-11. Tools: `replica/parity.py` (features), `replica/imgdiff.py` (l
 
 | | |
 | --- | --- |
-| **Overall** | **60.9 / 100** feature parity; home layout **15.2** (different, see L1 to L7) |
+| **Overall** | **59.4 / 100** feature parity (77 rows after the phone findings); home layout **15.2** (different, see L1 to L7) |
 | Must-haves | **27 of 29** done, 2 partial |
 | Open bugs | no S1, no S2; one S4 (BUG-011) |
 | Rule | "shippable" needs all must-haves done and a score of 80+. Two must-haves are partial and the score is under 80. |
@@ -82,7 +82,7 @@ Layout diff, phone home vs Driftlist home: **17.5 (different)**. The two were in
 | L14 | Search: pill field with a ⋮ menu; empty state shows nothing; the top result says "Tap Search to open"; last row "Search for more apps" (Play) | "Most used" when empty; web search row | Add the hint and a Play Store row; keep "Most used" (deliberately different) |
 | L15 | Round search button bottom-right while in the app list; Niagara Button (56 dp) bottom-right on home | No button | Milestone 3 (Niagara Button already planned) |
 
-New features found on the phone: sort the app list by usage within each letter, a Quick Replies on/off setting, a Screen time shortcut in app options, and a home-screen rotation setting. All four are added to `features.csv` as could-haves. Feature parity is now 60.1 with 77 rows counted; the score dipped slightly because of the new rows.
+New features found on the phone: sort the app list by usage within each letter, a Quick Replies on/off setting, a Screen time shortcut in app options, and a home-screen rotation setting. All four are added to `features.csv` as could-haves. Feature parity is now 59.4 with 77 rows counted; the score dipped slightly because of the new rows.
 
 ## Behaviour diff
 
