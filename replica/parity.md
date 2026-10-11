@@ -43,7 +43,7 @@ Reference images, all approved by you and kept git-ignored in `replica/screens/s
 - `niagara-hero.png`: a straight-on Niagara home screen in a phone frame. This is the only one usable for the automatic diff.
 - `hero-image-mobile.png`, `hero-image-tablet-1.png`: niagaralauncher.com hero photos.
 - `play-find-apps-faster.png`: a Play Store listing image of the wave alphabet.
-- `review-photo-mon-clock.png`: a review photo of the "MON" clock style with a world-clock widget.
+- `review-photo-mon-clock.jpg`: a review photo of the "MON" clock style with a world-clock widget.
 
 | screen | score | verdict |
 | --- | --- | --- |
