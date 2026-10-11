@@ -63,6 +63,27 @@ Caveat: the two wallpapers differ, and edge maps count wallpaper texture, so the
 | L6 | Clock: time, then date + weather icon + temperature on one line; several clock styles ("TUE", "MON" with world clocks) | Time + date only | Milestone 3: weather and clock styles (already in the top five) |
 | L7 | Smaller labels and icons on favorites (about 16 sp next to a 40 dp icon) | 22 sp favorite labels | Tune: try 18 sp |
 
+## Measured on the user's own phone (Niagara 1.16.31, Galaxy S23)
+
+You drove the phone and I captured screenshots plus the accessibility layout (positions and sizes only; no app files read). Captures stay local in `replica/screens/niagara-phone/`. The layout numbers and Niagara's UI labels are in `replica/reference-measurements.md`.
+
+Layout diff, phone home vs Driftlist home: **17.5 (different)**. The two were in different states: the phone has a calendar widget and two suggestions, Driftlist has five favorites and a different wallpaper. So the number is mostly noise; the measurements below are what matter.
+
+| # | Niagara (measured) | Driftlist now | change |
+| --- | --- | --- | --- |
+| L1 | Content column at x 40 dp, 262 dp wide. Clock top at 101 dp (13%); widget directly under the date; favorites/suggestions directly under the widget | Column at 24 dp; favorites pinned to the bottom | Make "under the clock" the default; 40 dp column |
+| L2 | Alphabet: only letters that have apps; ☆ top, ○ bottom; at rest it sits level with the widget down to ~704 dp | Full height, all 27 letters | As measured |
+| L8 | **App pop-up is a floating card at the swiped row** (280 dp wide, 48 dp header with an "open" arrow plus the name, 52 dp rows with 36 dp icons), not a bottom sheet | Bottom sheet | Rebuild as an anchored card |
+| L9 | **List rows equal favorite rows**: 54 dp, 42 dp icon, label at 108 dp, ~16 sp; letter header 43 dp | List 48 dp / 32 dp icon / 18 sp; favorites 56 dp / 40 dp / 22 sp | One row size, 54 / 42 / 16 sp |
+| L10 | **Wave**: letters slide left in a V across the *whole* strip (peak ~140 dp at the finger, roughly linear falloff), barely scaled; 48 dp bubble at the finger; the section header lands ~1/3 down the screen | Cosine over 4 letters, scale 2.4×, 28 dp shift; header scrolled to the top | Match the shape; scroll the header to 1/3 |
+| L11 | Long-press sheet: 36 dp icon + 24 sp name; rows of 52 dp with leading icons: Favorite / App info / Screen time / Add to category / Uninstall / Advanced ▸ (Edit pop-up, Edit icon/name, Hide). Suggestions add "Stop suggesting" first; footer links to settings | Text-only rows, all visible, no Advanced group | Icons; group the rarer actions under Advanced; "Stop suggesting" for suggestions |
+| L12 | Settings: six top-level pages (Productivity, Themes, Pro, Help, Community, Advanced) with a big centred title that collapses into a pinned pill bar; sub-pages grouped into sections, switches with two-line descriptions | One long page | Split into sub-pages |
+| L13 | Clock long-press → "Niagara widget" sheet of rounded **cards** (Clock style, Calendar, Weather, Add Custom Widget, Move Widget, Media, Battery %) | Plain text rows | Card rows |
+| L14 | Search: pill field with a ⋮ menu; empty state shows nothing; the top result says "Tap Search to open"; last row "Search for more apps" (Play) | "Most used" when empty; web search row | Add the hint and a Play Store row; keep "Most used" (deliberately different) |
+| L15 | Round search button bottom-right while in the app list; Niagara Button (56 dp) bottom-right on home | No button | Milestone 3 (Niagara Button already planned) |
+
+New features found on the phone: sort the app list by usage within each letter, a Quick Replies on/off setting, a Screen time shortcut in app options, and a home-screen rotation setting. All four are added to `features.csv` as could-haves. Feature parity is now 60.1 with 77 rows counted; the score dipped slightly because of the new rows.
+
 ## Behaviour diff
 
 Driftlist's side was walked on the emulator. Niagara's side comes from its help center and walkthroughs in `recon.md`, not from using it.
@@ -86,7 +107,7 @@ Driftlist's side was walked on the emulator. Niagara's side comes from its help 
 
 ## Top five to build next
 
-1. **Close the two must-haves, and fix the layout gaps L1 to L3 and L5.** Gaps: favorites under the clock, only letters that have apps, the ☆ and ○ markers, and the notification time plus › button. Shortcuts inside folders, and real permission explainer dialogs (including the "restricted settings" steps for sideloaded installs on Android 13+). Together with "Edit favorites" in the favorite sheet, that's a small milestone, and it brings must-haves to 29 of 29.
+1. **Close the two must-haves, and the measured layout gaps L1, L2, L3, L5 and L8 to L11.** That means the column and position, the alphabet, the anchored pop-up card, one row size, the real wave shape, and the long-press sheet with icons. Gaps: favorites under the clock, only letters that have apps, the ☆ and ○ markers, and the notification time plus › button. Shortcuts inside folders, and real permission explainer dialogs (including the "restricted settings" steps for sideloaded installs on Android 13+). Together with "Edit favorites" in the favorite sheet, that's a small milestone, and it brings must-haves to 29 of 29.
 2. **Calendar and weather** (S14 agenda sheet, events and weather in the header): two should-haves, +4 weighted points. Open-Meteo needs no key.
 3. **Theming, part 1:** wallpaper-derived colours, three or four clock styles of our own, and bundled OFL fonts. These are the cheapest theming wins.
 4. **Home extras:** media card, suggested apps row, and the shortcut button. Three should-haves, all small.

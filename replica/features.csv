@@ -81,3 +81,7 @@ Pro paywall / Play billing / trial / invite rewards,monetization,could,yes,skip,
 Sesame integration,search,could,yes,skip,discontinued and depends on a third-party app
 Kagi signed-in search,search,could,yes,skip,depends on the user's paid account
 True app locking / password-protected apps,wellbeing,could,no,skip,not possible for a non-root launcher; original declines it too
+Sort app list by usage within each letter,app list,could,yes,no,seen on the user's phone (Productivity > App Organization); free
+Quick Replies on/off setting,notifications,could,yes,no,seen on the user's phone (Productivity > Instant Access)
+Screen time shortcut in app options,home,could,yes,no,seen on the user's phone (long-press sheet)
+Allow home screen rotation setting,layout,could,yes,no,seen on the user's phone (Productivity > Advanced)
