@@ -39,12 +39,12 @@ Action button: folder / shortcut / swipe-up second action,home,could,yes,no,pro
 Move clock/header position slider,home,should,yes,no,free; help 156
 Settings screen with sections,settings,must,yes,yes,M2
 Left-hand mode (left edge scroller),accessibility,should,yes,no,free; help 39
-Light / dark mode,theming,must,yes,partial,free
+Light / dark mode,theming,must,yes,yes,M2: sheets and settings follow the system theme; home follows the wallpaper (verified in test pass P-3)
 Wallpaper-derived colour palette (Material You backport),theming,should,yes,no,free; Material Color Utilities; help 133
 Accent colour override,theming,could,yes,no,free; Edit Current Theme
 Wallpaper blur,theming,could,yes,no,free; help 64
 Built-in wallpaper picker (home / lock / both),theming,could,yes,no,free; own wallpapers only
-Font size scaling,theming,should,yes,no,free; help 55
+Font size scaling,theming,should,yes,partial,follows the system font size (verified at 1.5x); no in-app setting yet
 Ready-made themes (one-tap apply),theming,should,yes,no,pro (3 free); clone ships its own few themes
 Theme Studio editor with live preview,theming,should,yes,no,pro; S19; wallpaper + icons + clock + font + accent; autosave
 My Themes: save multiple and switch,theming,should,yes,no,pro
@@ -60,7 +60,7 @@ Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + config
 Widget stacks (up to 4 / swipe to switch),widgets,should,yes,no,pro; help 41
 Widgets inside app pop-ups and folders,widgets,could,yes,no,pro
 Two-column layout on foldables / tablets,layout,could,yes,no,free; help 100
-Landscape support,layout,could,yes,no,free; help 21
+Landscape support,layout,could,yes,partial,"test pass F03-E7: works, but the big clock pushes the last favorite below the fold (BUG-011)"
 Calendar upcoming events on home + agenda sheet,widgets,should,yes,no,pro; CalendarContract; S14
 Calendar event filter by calendar,widgets,could,yes,no,pro
 Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,no,pro; own API key (Open-Meteo is keyless); current or fixed location; C/F
