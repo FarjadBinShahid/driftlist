@@ -1,26 +1,26 @@
 feature,area,priority,original,clone,notes
-Registers as Android HOME launcher,core,must,yes,no,free; HOME intent filter + RoleManager prompt (S03)
+Registers as Android HOME launcher,core,must,yes,yes,free; HOME intent filter + RoleManager prompt (S03)
 Onboarding: terms then pick favorites then set default,onboarding,must,yes,no,free; S01-S03 F01
-Notification access prompt card,onboarding,must,yes,no,free; S04 + S29; handle restricted-settings on sideload
-Home screen favorites list (icon + label),home,must,yes,no,free; S05
-Clock and date header (tap opens clock / calendar),home,must,yes,no,free; S05
-Full alphabetical app list with letter headers,app list,must,yes,no,free; S06
-Wave alphabet scroller on right edge,app list,must,yes,no,free; magnification wave + live scroll; the core interaction
-Haptic tick per letter (toggle),app list,should,yes,no,free; Settings > Features
-Locale-aware alphabet buckets (# and extra letters),app list,should,yes,no,free; ICU AlphabeticIndex; help 155
-Live app list updates on install / uninstall / update,core,must,yes,no,free; LauncherApps callbacks
-Work profile / multi-user apps shown,core,should,yes,no,free; user_handle on LauncherApp
+Notification access prompt card,onboarding,must,yes,partial,free; S04 + S29; handle restricted-settings on sideload
+Home screen favorites list (icon + label),home,must,yes,yes,free; S05
+Clock and date header (tap opens clock / calendar),home,must,yes,yes,free; S05
+Full alphabetical app list with letter headers,app list,must,yes,yes,free; S06
+Wave alphabet scroller on right edge,app list,must,yes,yes,free; magnification wave + live scroll; the core interaction
+Haptic tick per letter (toggle),app list,should,yes,partial,free; Settings > Features
+Locale-aware alphabet buckets (# and extra letters),app list,should,yes,yes,free; ICU AlphabeticIndex; help 155
+Live app list updates on install / uninstall / update,core,must,yes,yes,free; LauncherApps callbacks
+Work profile / multi-user apps shown,core,should,yes,partial,free; user_handle on LauncherApp
 Recently installed list in app list footer,app list,should,yes,no,free; S28
-Inline notification preview on app rows,notifications,must,yes,no,free; NotificationListenerService
-Swipe right on app opens app pop-up,pop-ups,must,yes,no,free; S07
-Notifications in app pop-up: expand and dismiss,notifications,must,yes,no,free; full notifications in pop-ups are Pro
+Inline notification preview on app rows,notifications,must,yes,yes,free; NotificationListenerService
+Swipe right on app opens app pop-up,pop-ups,must,yes,yes,free; S07
+Notifications in app pop-up: expand and dismiss,notifications,must,yes,partial,free; full notifications in pop-ups are Pro
 Inline reply to notifications from home,notifications,must,yes,no,free; RemoteInput
 App shortcuts in app pop-up,pop-ups,must,yes,no,free; LauncherApps shortcuts
 Hide shortcuts per app,pop-ups,could,yes,no,free; help 84
-Swipe down anywhere opens notification shade,gestures,must,yes,no,free; help 98
+Swipe down anywhere opens notification shade,gestures,must,yes,yes,free; help 98
 Long swipe up opens search (quick swipe scrolls),gestures,must,yes,no,free; help 90; gesture arbitration
 HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,no,free; help 86
-App options sheet on long-press,home,must,yes,no,free; S08
+App options sheet on long-press,home,must,yes,partial,free; S08
 Rename app,home,must,yes,no,free; S08 tap label
 Hide app from app list + hidden apps screen,wellbeing,must,yes,no,free; S24; still searchable unless excluded
 Edit favorites: reorder / add / remove,home,must,yes,no,free; S10 drag handle
@@ -39,7 +39,7 @@ Action button: folder / shortcut / swipe-up second action,home,could,yes,no,pro
 Move clock/header position slider,home,should,yes,no,free; help 156
 Settings screen with sections,settings,must,yes,no,free; S17 S22
 Left-hand mode (left edge scroller),accessibility,should,yes,no,free; help 39
-Light / dark mode,theming,must,yes,no,free
+Light / dark mode,theming,must,yes,partial,free
 Wallpaper-derived colour palette (Material You backport),theming,should,yes,no,free; Material Color Utilities; help 133
 Accent colour override,theming,could,yes,no,free; Edit Current Theme
 Wallpaper blur,theming,could,yes,no,free; help 64
