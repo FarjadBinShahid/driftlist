@@ -33,7 +33,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
@@ -73,6 +77,8 @@ fun WaveAlphabet(
     var current by remember { mutableStateOf<String?>(null) }
     val intensity = remember { Animatable(0f) }
     val enabled = letters.map { it in enabledLetters }
+    val enabledList = letters.filter { it in enabledLetters }
+    var a11yIndex by remember(enabledList) { mutableIntStateOf(0) }
 
     Box(
         modifier = modifier
@@ -80,6 +86,25 @@ fun WaveAlphabet(
             .fillMaxHeight()
             .systemGestureExclusion()
             .onSizeChanged { heightPx = it.height.coerceAtLeast(1) }
+            // TalkBack sees one adjustable control instead of 27 tiny buttons: swipe up or down
+            // to move letter by letter, and the list follows.
+            .semantics {
+                contentDescription = "Alphabet"
+                if (enabledList.isNotEmpty()) {
+                    stateDescription = enabledList[a11yIndex.coerceIn(0, enabledList.lastIndex)]
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        a11yIndex.toFloat(),
+                        0f..enabledList.lastIndex.toFloat(),
+                        steps = (enabledList.size - 2).coerceAtLeast(0),
+                    )
+                    setProgress { value ->
+                        val i = value.roundToInt().coerceIn(0, enabledList.lastIndex)
+                        a11yIndex = i
+                        onLetter(enabledList[i])
+                        true
+                    }
+                }
+            }
             .pointerInput(letters, enabledLetters) {
                 fun pick(y: Float) {
                     fingerY = y
@@ -88,6 +113,7 @@ fun WaveAlphabet(
                     val letter = letters[slot]
                     if (letter != current) {
                         current = letter
+                        a11yIndex = enabledList.indexOf(letter).coerceAtLeast(0)
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         onLetter(letter)
                     }
@@ -117,7 +143,13 @@ fun WaveAlphabet(
                 }
             },
     ) {
-        Column(Modifier.fillMaxHeight().width(SizeTokens.alphabetStripWidth).align(Alignment.CenterEnd)) {
+        Column(
+            Modifier
+                .fillMaxHeight()
+                .width(SizeTokens.alphabetStripWidth)
+                .align(Alignment.CenterEnd)
+                .clearAndSetSemantics { },
+        ) {
             letters.forEachIndexed { i, letter ->
                 val isEnabled = enabled[i]
                 Box(
@@ -137,16 +169,13 @@ fun WaveAlphabet(
                             scaleX = scale
                             scaleY = scale
                             translationX = -maxOffsetPx * t
-                        }
-                        .semantics {
-                            contentDescription = "Jump to $letter"
-                            if (isEnabled) onClick { onLetter(letter); true }
                         },
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         letter,
-                        style = TypeTokens.alphabet.onWallpaper(colors, 
+                        style = TypeTokens.alphabet.onWallpaper(
+                            colors,
                             if (isEnabled) colors.alphabet else colors.alphabet.copy(alpha = 0.4f),
                         ),
                         fontWeight = if (letter == current) FontWeight.Black else null,

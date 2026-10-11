@@ -30,3 +30,4 @@ build.log
 # Built APKs and local signing key
 dist/
 keystore/
+test.log

@@ -1,6 +1,7 @@
 package dev.farjad.driftlist.ui.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -74,11 +77,21 @@ fun DriftSheet(onClose: () -> Unit, content: @Composable ColumnScope.() -> Unit)
         onDismissRequest = onClose,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = RadiusTokens.sheet, topEnd = RadiusTokens.sheet),
+        // No Material drag handle: its slot wraps the handle in a 32 dp actionable box. The sheet
+        // closes by dragging, tapping outside or Back, so ours is purely visual (below).
+        dragHandle = null,
     ) {
-        Column(
-            Modifier.navigationBarsPadding().imePadding().padding(bottom = SpaceTokens.s4),
-            content = content,
-        )
+        Column(Modifier.navigationBarsPadding().imePadding().padding(bottom = SpaceTokens.s4)) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(vertical = SpaceTokens.s5)
+                    .size(SizeTokens.sheetHandleWidth, SizeTokens.sheetHandleHeight)
+                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), RoundedCornerShape(RadiusTokens.pill))
+                    .clearAndSetSemantics { },
+            )
+            content()
+        }
     }
 }
 
@@ -101,7 +114,9 @@ private fun SheetHeader(app: AppEntity, icons: IconCache, onIconClick: (() -> Un
         horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
     ) {
         val iconModifier = if (onIconClick != null) {
-            Modifier.clickable(onClickLabel = "Change icon", onClick = onIconClick)
+            Modifier
+                .clickable(onClickLabel = "Change icon", onClick = onIconClick)
+                .semantics { contentDescription = "Change icon for ${app.label}" }
         } else {
             Modifier
         }

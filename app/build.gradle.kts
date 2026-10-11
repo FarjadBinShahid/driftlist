@@ -16,7 +16,11 @@ android {
         targetSdk = 37
         versionCode = 2
         versionName = "0.2.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    // Room migration tests read the exported schemas.
+    sourceSets.getByName("androidTest").assets.directories.add("$projectDir/schemas")
 
     // Release signing reads ../keystore.properties (gitignored). Without it, release builds come out unsigned.
     val keystoreProps = rootProject.file("keystore.properties").takeIf { it.exists() }?.let { file ->
@@ -34,6 +38,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // Lets a debug/test build sit next to the installed release build.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -78,4 +87,20 @@ dependencies {
     implementation(libs.datastore.preferences)
 
     testImplementation(libs.junit)
+
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.room.testing)
+    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test.junit4)
+    androidTestImplementation(libs.compose.ui.test.junit4.accessibility)
+    debugImplementation(libs.compose.ui.test.manifest)
+
+    constraints {
+        // room-testing's schema reader needs 1.8+; this only lifts the version, it adds nothing.
+        implementation(libs.kotlinx.serialization.json)
+    }
 }
