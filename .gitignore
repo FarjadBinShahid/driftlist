@@ -31,3 +31,4 @@ build.log
 dist/
 keystore/
 test.log
+replica/diffs/*.png

@@ -6,7 +6,7 @@ Date: 2026-10-11. Tools: `replica/parity.py` (features), `replica/imgdiff.py` (l
 
 | | |
 | --- | --- |
-| **Overall** | **60.9 / 100** (feature score; there is no layout score) |
+| **Overall** | **60.9 / 100** feature parity; home layout **15.2** (different, see L1 to L7) |
 | Must-haves | **27 of 29** done, 2 partial |
 | Open bugs | no S1, no S2; one S4 (BUG-011) |
 | Rule | "shippable" needs all must-haves done and a score of 80+. Two must-haves are partial and the score is under 80. |
@@ -36,15 +36,32 @@ The core loop is at parity: favorites, the wave alphabet, inline notifications w
 
 8 rows are left out on purpose: Niagara's artwork, its server-side data, its community, accounts and payments, and Sesame. The full missing list in build order is in the parity tool output: `python replica/parity.py replica/features.csv`.
 
-## Layout diff: not run
+## Layout diff (home screen S05)
 
-There are no screenshots of the original in `replica/screens/`; the recon was public-source only, by your choice. Comparing against nothing would produce a made-up number, so there is no layout score. To get one, either:
-- save Niagara's public Play Store screenshots into `replica/screens/` (reference only, never shipped), or
-- screenshot Niagara on a phone you own.
+Reference images, all approved by you and kept git-ignored in `replica/screens/source/`. None of them ship.
 
-Then run `python replica/imgdiff.py replica/screens/S05.png replica/clone-screens/S05-home.png --out replica/diffs/S05.png`.
+- `niagara-hero.png`: a straight-on Niagara home screen in a phone frame. This is the only one usable for the automatic diff.
+- `hero-image-mobile.png`, `hero-image-tablet-1.png`: niagaralauncher.com hero photos.
+- `play-find-apps-faster.png`: a Play Store listing image of the wave alphabet.
+- `review-photo-mon-clock.png`: a review photo of the "MON" clock style with a world-clock widget.
 
-Driftlist's own screenshots for every built screen are already in `replica/clone-screens/`.
+| screen | score | verdict |
+| --- | --- | --- |
+| S05 home | 15.2 | different |
+
+How it was measured: Niagara's screen was cropped from its frame (the bottom ~27% is outside the image), and Driftlist's home was cropped to the same proportion. Then `imgdiff.py`, layout mode (edges, 12 columns). The JSON is in `replica/diffs/S05.json`; the diff image is local only.
+
+Caveat: the two wallpapers differ, and edge maps count wallpaper texture, so the score understates the similarity. The real structural differences, by eye across all five references:
+
+| # | Niagara | Driftlist | parity fix? |
+| --- | --- | --- | --- |
+| L1 | Favorites flow **directly under the clock**, in the upper middle; empty space below | Favorites anchored to the **bottom**; empty space between clock and favorites | Yes. Biggest layout gap. Option: "favorites under the clock" as the default, with bottom-anchored as a setting |
+| L2 | Alphabet shows **only letters that have apps**, as a short strip spanning roughly the favorites area | Full-height strip with all 27 letters; empty ones faded | Yes: drop empty letters, shorten the strip |
+| L3 | ☆ at the top of the alphabet (back to favorites), ○ at the bottom (settings) | Neither; settings is the last row of the list | Yes: cheap |
+| L4 | Wave arcs the letters out to the left in a curve, bubble just left of the finger | Same idea; similar curve and bubble | Keep; tune after a side-by-side on device |
+| L5 | Notification preview reads "Gmail • 2h" / "5 new emails" plus a small › button on the row | "Gmail: 5 new emails" on one line, no time, no button | Yes: add the time, and a › button that opens the pop-up (also good for TalkBack) |
+| L6 | Clock: time, then date + weather icon + temperature on one line; several clock styles ("TUE", "MON" with world clocks) | Time + date only | Milestone 3: weather and clock styles (already in the top five) |
+| L7 | Smaller labels and icons on favorites (about 16 sp next to a 40 dp icon) | 22 sp favorite labels | Tune: try 18 sp |
 
 ## Behaviour diff
 
@@ -69,7 +86,7 @@ Driftlist's side was walked on the emulator. Niagara's side comes from its help 
 
 ## Top five to build next
 
-1. **Close the two must-haves.** Shortcuts inside folders, and real permission explainer dialogs (including the "restricted settings" steps for sideloaded installs on Android 13+). Together with "Edit favorites" in the favorite sheet, that's a small milestone, and it brings must-haves to 29 of 29.
+1. **Close the two must-haves, and fix the layout gaps L1 to L3 and L5.** Gaps: favorites under the clock, only letters that have apps, the ☆ and ○ markers, and the notification time plus › button. Shortcuts inside folders, and real permission explainer dialogs (including the "restricted settings" steps for sideloaded installs on Android 13+). Together with "Edit favorites" in the favorite sheet, that's a small milestone, and it brings must-haves to 29 of 29.
 2. **Calendar and weather** (S14 agenda sheet, events and weather in the header): two should-haves, +4 weighted points. Open-Meteo needs no key.
 3. **Theming, part 1:** wallpaper-derived colours, three or four clock styles of our own, and bundled OFL fonts. These are the cheapest theming wins.
 4. **Home extras:** media card, suggested apps row, and the shortcut button. Three should-haves, all small.

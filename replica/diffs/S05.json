@@ -1,0 +1,80 @@
+{
+  "mode": "layout",
+  "original": {
+    "width": 391,
+    "height": 635
+  },
+  "clone": {
+    "width": 1080,
+    "height": 1754
+  },
+  "compared_at": {
+    "width": 391,
+    "height": 635
+  },
+  "height_delta_pct": 0.0,
+  "score": 15.2,
+  "verdict": "different",
+  "regions": [
+    {
+      "x": 0,
+      "y": 224,
+      "w": 384,
+      "h": 411,
+      "cells": 86,
+      "where": "bottom centre"
+    },
+    {
+      "x": 288,
+      "y": 0,
+      "w": 96,
+      "h": 224,
+      "cells": 9,
+      "where": "top right"
+    },
+    {
+      "x": 64,
+      "y": 128,
+      "w": 128,
+      "h": 32,
+      "cells": 4,
+      "where": "top left"
+    },
+    {
+      "x": 0,
+      "y": 0,
+      "w": 96,
+      "h": 32,
+      "cells": 3,
+      "where": "top left"
+    },
+    {
+      "x": 0,
+      "y": 128,
+      "w": 32,
+      "h": 32,
+      "cells": 1,
+      "where": "top left"
+    },
+    {
+      "x": 0,
+      "y": 192,
+      "w": 32,
+      "h": 32,
+      "cells": 1,
+      "where": "top left"
+    },
+    {
+      "x": 160,
+      "y": 192,
+      "w": 32,
+      "h": 32,
+      "cells": 1,
+      "where": "top centre"
+    }
+  ],
+  "files": {
+    "original": "replica/screens/S05-home.png",
+    "clone": "replica/clone-screens/S05-home-diffcrop.png"
+  }
+}
