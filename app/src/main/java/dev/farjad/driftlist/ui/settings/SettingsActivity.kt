@@ -265,7 +265,7 @@ private fun RootPage(
         item {
             NavRow(
                 "Time checks",
-                if (state.settings.usageBreaker) "On for ${state.usageRules.size} apps" else "Off",
+                if (state.settings.usageBreaker) "On for ${state.usageRules.size} ${if (state.usageRules.size == 1) "app" else "apps"}" else "Off",
             ) { onNavigate(Page.TimeChecks) }
         }
 

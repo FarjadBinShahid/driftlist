@@ -29,6 +29,17 @@ class IconCache(
     @Volatile private var pack: String? = null
     @Volatile private var overrides: Map<String, IconOverrideEntity> = emptyMap()
 
+    /** Set when an icon was requested before the catalog knew its app (cold start race). */
+    @Volatile private var missed = false
+
+    /** Hooked to AppCatalog.onSynced: anything that came up empty gets another try. */
+    fun onCatalogSynced() {
+        if (missed) {
+            missed = false
+            _version.value += 1
+        }
+    }
+
     fun update(pack: String?, overrides: List<IconOverrideEntity>) {
         val key = pack ?: IconOverrideEntity.SYSTEM
         val relevant = overrides.filter { it.iconPack == key }.associateBy { it.appId }
@@ -51,7 +62,10 @@ class IconCache(
     }
 
     private fun resolve(appId: String): Drawable? {
-        val info = catalog.info(appId) ?: return null
+        val info = catalog.info(appId) ?: run {
+            missed = true
+            return null
+        }
         val component = info.componentName.flattenToString()
         val currentPack = pack
         overrides[appId]?.drawableName?.let { name ->

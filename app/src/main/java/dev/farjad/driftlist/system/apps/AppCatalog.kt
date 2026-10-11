@@ -42,6 +42,9 @@ class AppCatalog(
     private val infos = ConcurrentHashMap<String, LauncherActivityInfo>()
     private val syncLock = Mutex()
 
+    /** Called after every sync, once [info] knows the current set of apps. */
+    @Volatile var onSynced: (() -> Unit)? = null
+
     private val callback = object : LauncherApps.Callback() {
         override fun onPackageRemoved(packageName: String, user: UserHandle) = requestSync()
         override fun onPackageAdded(packageName: String, user: UserHandle) = requestSync()
@@ -92,6 +95,7 @@ class AppCatalog(
             infos.keys.retainAll(seen)
             db.appDao().sync(fresh)
         }
+        onSynced?.invoke()
     }
 
     fun info(appId: String): LauncherActivityInfo? = infos[appId]

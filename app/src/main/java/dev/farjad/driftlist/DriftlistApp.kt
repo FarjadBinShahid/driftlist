@@ -45,6 +45,7 @@ class DriftlistApp : Application() {
         super.onCreate()
         val c = AppContainer(this)
         container = c
+        c.catalog.onSynced = c.icons::onCatalogSynced
         c.catalog.start()
         c.usageBreaker.start()
 
