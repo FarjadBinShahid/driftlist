@@ -1,5 +1,23 @@
 # Test plan: Driftlist 0.2.0
 
+## Results (2026-10-11, build 03e1585)
+
+| layer | cases | passed | failed |
+| --- | --- | --- | --- |
+| Unit tests (JVM): search ranking, wave maths | 6 | 6 | 0 |
+| Instrumented tests (emulator): Room, migration, backup, icon cache, home flows with accessibility checks | 21 | 21 | 0 |
+| Manual on the emulator | 31 | 30 | 1 (BUG-011, S4, open) |
+
+Bugs: S1 ×1, S2 ×1, S3 ×5, S4 ×4. Ten fixed, one open (S4). No open S1 or S2. Details are in `bugs.md`.
+
+Run the automated suite:
+
+```bash
+./gradlew testDebugUnitTest connectedDebugAndroidTest
+```
+
+The debug build installs as `dev.farjad.driftlist.debug`, so it sits next to the release build, and the tests make it the home app while they run.
+
 Flows come from `replica/recon.md`. Case IDs: **H** happy path, **E** edge case, **N** negative case.
 
 How each case is tested:
