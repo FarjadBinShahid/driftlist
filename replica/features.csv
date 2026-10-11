@@ -1,7 +1,7 @@
 feature,area,priority,original,clone,notes
 Registers as Android HOME launcher,core,must,yes,yes,free; HOME intent filter + RoleManager prompt (S03)
-Onboarding: terms then pick favorites then set default,onboarding,must,yes,no,free; S01-S03 F01
-Notification access prompt card,onboarding,must,yes,partial,free; S04 + S29; handle restricted-settings on sideload
+Onboarding: terms then pick favorites then set default,onboarding,must,yes,yes,M2: welcome + favorites picker + role prompt; no terms screen (no terms to accept)
+Notification access prompt card,onboarding,must,yes,yes,M2
 Home screen favorites list (icon + label),home,must,yes,yes,free; S05
 Clock and date header (tap opens clock / calendar),home,must,yes,yes,free; S05
 Full alphabetical app list with letter headers,app list,must,yes,yes,free; S06
@@ -13,31 +13,31 @@ Work profile / multi-user apps shown,core,should,yes,partial,free; user_handle o
 Recently installed list in app list footer,app list,should,yes,no,free; S28
 Inline notification preview on app rows,notifications,must,yes,yes,free; NotificationListenerService
 Swipe right on app opens app pop-up,pop-ups,must,yes,yes,free; S07
-Notifications in app pop-up: expand and dismiss,notifications,must,yes,partial,free; full notifications in pop-ups are Pro
-Inline reply to notifications from home,notifications,must,yes,no,free; RemoteInput
-App shortcuts in app pop-up,pop-ups,must,yes,no,free; LauncherApps shortcuts
+Notifications in app pop-up: expand and dismiss,notifications,must,yes,yes,"M2: full text, swipe-left dismiss, action buttons"
+Inline reply to notifications from home,notifications,must,yes,yes,M2: verified end to end with an SMS on the emulator
+App shortcuts in app pop-up,pop-ups,must,yes,yes,M2: needs Driftlist to be the default launcher
 Hide shortcuts per app,pop-ups,could,yes,no,free; help 84
 Swipe down anywhere opens notification shade,gestures,must,yes,yes,free; help 98
-Long swipe up opens search (quick swipe scrolls),gestures,must,yes,no,free; help 90; gesture arbitration
-HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,no,free; help 86
-App options sheet on long-press,home,must,yes,partial,free; S08
-Rename app,home,must,yes,no,free; S08 tap label
-Hide app from app list + hidden apps screen,wellbeing,must,yes,no,free; S24; still searchable unless excluded
-Edit favorites: reorder / add / remove,home,must,yes,no,free; S10 drag handle
+Long swipe up opens search (quick swipe scrolls),gestures,must,yes,yes,M2
+HOME press on favorites opens search; HOME within 3s returns to app list position,gestures,should,yes,partial,M2: Home-on-home opens search; the 3-second return to list position is not built
+App options sheet on long-press,home,must,yes,yes,M2
+Rename app,home,must,yes,yes,M2: renamed apps re-sort under their new name
+Hide app from app list + hidden apps screen,wellbeing,must,yes,yes,M2
+Edit favorites: reorder / add / remove,home,must,yes,yes,M2: drag handle + TalkBack move actions
 Suggested apps (most used) below favorites; long-press to hide,home,should,yes,no,free; usage counters
-Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,no,free; S11; no nesting by design
+Pop-up folders (apps + shortcuts) on home,pop-ups,must,yes,partial,M2: apps only; shortcuts in folders not yet
 Pop-up folders shown as categories in app list,pop-ups,could,yes,no,pro
 Customizable app pop-ups (used like folders),pop-ups,could,yes,no,pro
-Search apps,search,must,yes,no,free; S15; Enter opens first result
+Search apps,search,must,yes,yes,"M2: prefix, word, initials, substring; accents ignored"
 Integrated calculator in search,search,should,yes,no,free; expression parser per help 173
-Web search suggestions with engine choice,search,should,yes,no,free; Google/DDG/Bing/Brave/Startpage; help 186
+Web search suggestions with engine choice,search,should,yes,partial,"M2: ""Search the web"" hands off to the system web search; no live suggestions or engine choice yet"
 Contact search with call / message,search,could,yes,no,pro; conflicting sources on whether shipped natively
-Option to exclude hidden apps from search,search,could,yes,no,free; help 111
+Option to exclude hidden apps from search,search,could,yes,yes,M2: setting
 Media player card on home (auto show / hide),home,should,yes,no,free; MediaSessionManager; help 11
 Niagara-style action button (tap action),home,should,yes,no,free; S16; one app
 Action button: folder / shortcut / swipe-up second action,home,could,yes,no,pro
 Move clock/header position slider,home,should,yes,no,free; help 156
-Settings screen with sections,settings,must,yes,no,free; S17 S22
+Settings screen with sections,settings,must,yes,yes,M2
 Left-hand mode (left edge scroller),accessibility,should,yes,no,free; help 39
 Light / dark mode,theming,must,yes,partial,free
 Wallpaper-derived colour palette (Material You backport),theming,should,yes,no,free; Material Color Utilities; help 133
@@ -49,14 +49,14 @@ Ready-made themes (one-tap apply),theming,should,yes,no,pro (3 free); clone ship
 Theme Studio editor with live preview,theming,should,yes,no,pro; S19; wallpaper + icons + clock + font + accent; autosave
 My Themes: save multiple and switch,theming,should,yes,no,pro
 Share theme as file / import theme file,theming,could,yes,no,pro import; own file format; size cap; no system font / external wallpaper
-Third-party icon pack support,icons,must,yes,no,pro; parse public appfilter.xml convention
-Per-app icon override picker,icons,must,yes,no,pro; S09
+Third-party icon pack support,icons,must,yes,partial,M2: built (appfilter.xml); not yet tested with a real pack
+Per-app icon override picker,icons,must,yes,partial,M2: built; untested without an installed pack
 Icon Assistant: suggestions for apps missing from a pack,icons,could,yes,no,pro; local heuristic only (no crowd data)
-Icon Assistant: auto-restore per-pack choices,icons,should,yes,no,pro; IconOverride keyed by pack
+Icon Assistant: auto-restore per-pack choices,icons,should,yes,partial,M2: overrides stored per pack; untested
 Custom fonts (bundled + import .ttf/.otf),theming,should,yes,no,pro; help 79; ship OFL fonts
 Clock styles,theming,should,yes,no,pro; design own styles
 Replace clock with widget,widgets,could,yes,no,pro?; help 23
-Add a custom widget on home (header area),widgets,must,yes,no,AppWidgetHost; single widget
+Add a custom widget on home (header area),widgets,must,yes,yes,M2: bind + configure verified with the Clock widget
 Widget stacks (up to 4 / swipe to switch),widgets,should,yes,no,pro; help 41
 Widgets inside app pop-ups and folders,widgets,could,yes,no,pro
 Two-column layout on foldables / tablets,layout,could,yes,no,free; help 100
@@ -64,14 +64,14 @@ Landscape support,layout,could,yes,no,free; help 21
 Calendar upcoming events on home + agenda sheet,widgets,should,yes,no,pro; CalendarContract; S14
 Calendar event filter by calendar,widgets,could,yes,no,pro
 Weather: current + 24h hourly + 7-day forecast,widgets,should,yes,no,pro; own API key (Open-Meteo is keyless); current or fixed location; C/F
-Usage Breaker reminders (5..240 min ladder),wellbeing,must,yes,no,pro; UsageStatsManager; S30; never blocks
+Usage Breaker reminders (5..240 min ladder),wellbeing,must,yes,yes,"M2: verified on emulator, reminders at 5 and 10 min; never blocks"
 Notification Summary batching,wellbeing,should,yes,no,free/beta; S31; 5.5-6.5h schedule; Android 8+
 Double-tap alphabet to sleep (Quick Lock),gestures,should,yes,no,pro; AccessibilityService GLOBAL_ACTION_LOCK_SCREEN; Android 9+
 Hide status bar,theming,could,yes,no,pro
 Plug and Play: music apps appear when headphones connect,home,could,yes,no,pro; AudioDeviceCallback
 Flashlight-on reminder row,home,could,yes,no,free; v1.16.28; CameraManager torch callback
-Backup to local file + restore,backup,must,yes,no,free; S25; versioned JSON; excludes wallpaper and widget bindings
-Permission explainer dialogs with deep links,core,must,yes,no,free; S29
+Backup to local file + restore,backup,must,yes,yes,"M2: JSON via the system file picker; verified save, wipe, restore"
+Permission explainer dialogs with deep links,core,must,yes,partial,M2: setup cards and settings rows deep-link; no dedicated explainer dialogs
 Anycons / Niagara Dots icon art,icons,could,yes,skip,their artwork; draw or license your own icon set
 Built-in wallpapers / artist themes / clock designs,theming,could,yes,skip,their artwork; create your own
 Anycons ML app categorisation + crowd icon suggestions,icons,could,yes,skip,server-side data the app owns

@@ -116,7 +116,12 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         vm.homePresses.collect { alreadyHome ->
             val s = latestState
-            overlay = if (alreadyHome && overlay == null && pane == Pane.Favorites && s.settings.swipeUpSearch) Overlay.Search else null
+            val onboarding = s.loaded && !s.onboardingDone && s.favorites.isEmpty()
+            overlay = if (!onboarding && alreadyHome && overlay == null && pane == Pane.Favorites && s.settings.swipeUpSearch) {
+                Overlay.Search
+            } else {
+                null
+            }
             pane = Pane.Favorites
         }
     }

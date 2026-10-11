@@ -6,6 +6,8 @@ It's a personal, clean-room project inspired by the UX of Niagara Launcher. No c
 
 ## Status
 
+Milestone 2 (0.2.0): onboarding, search, edit favorites, folders, rename and hide, inline reply, app shortcuts, a header widget, icon packs, Time checks, backup and restore, settings.
+
 Milestone 1 (vertical slice):
 
 - Set as the default launcher
