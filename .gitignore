@@ -26,3 +26,7 @@ replica/screens/*
 
 # Local build output
 build.log
+
+# Built APKs and local signing key
+dist/
+keystore/
