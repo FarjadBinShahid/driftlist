@@ -59,9 +59,9 @@ data class TypeToken(val size: Float, val line: Float, val weight: FontWeight, v
 object TypeTokens {
     val clock = TypeToken(64f, 68f, FontWeight(300), -1.0f)
     val clockSmall = TypeToken(40f, 44f, FontWeight(300), -0.5f)
-    val date = TypeToken(16f, 22f, FontWeight(500), 0.2f)
-    val favorite = TypeToken(17f, 24f, FontWeight(500), 0f)
-    val list = TypeToken(17f, 24f, FontWeight(500), 0f)
+    val date = TypeToken(15f, 21f, FontWeight(500), 0.2f)
+    val favorite = TypeToken(15f, 22f, FontWeight(500), 0f)
+    val list = TypeToken(15f, 22f, FontWeight(500), 0f)
     val letterHeader = TypeToken(14f, 20f, FontWeight(700), 1.2f)
     val preview = TypeToken(14f, 19f, FontWeight(400), 0f)
     val alphabet = TypeToken(11f, 14f, FontWeight(600), 0f)
