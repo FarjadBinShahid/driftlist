@@ -279,6 +279,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
+private const val REPO_URL = "https://github.com/FarjadBinShahid/driftlist"
+
 internal enum class Page(val title: String, val parent: Page? = null) {
     Root("Settings"),
     Home("Home screen", Root),
@@ -801,9 +803,12 @@ private fun BackupPage(vm: SettingsViewModel, padding: PaddingValues, snackbar: 
 
 @Composable
 private fun AboutPage(padding: PaddingValues, onNavigate: (Page) -> Unit) {
+    val context = LocalContext.current
+    val open = { url: String -> SystemActions.start(context, android.content.Intent(android.content.Intent.ACTION_VIEW, Uri.parse(url))) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
-        item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher.") {} }
-        item { NavRow("Privacy", "No accounts, no ads. Nothing leaves this phone unless you turn on web suggestions in search.") {} }
+        item { NavRow("Driftlist ${BuildConfig.VERSION_NAME}", "A calm, list-first launcher. Open source, no trackers, nothing to pay.") {} }
+        item { NavRow("Privacy", "No accounts, no ads, no analytics. Nothing leaves this phone unless you turn on web suggestions in search. Tap for the details") { open(REPO_URL + "/blob/main/PRIVACY.md") } }
+        item { NavRow("Source code", "MIT License. Read it, build it yourself, check there are no trackers") { open(REPO_URL) } }
         item { NavRow("Font licences", "${Fonts.bundled.size} fonts under the SIL Open Font License") { onNavigate(Page.FontLicences) } }
     }
 }

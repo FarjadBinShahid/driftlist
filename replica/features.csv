@@ -85,7 +85,7 @@ Sort app list by usage within each letter,app list,could,yes,yes,M4: Settings > 
 Quick Replies on/off setting,notifications,could,yes,yes,M4: Settings > Home screen > Quick replies
 Screen time shortcut in app options,home,could,yes,yes,"M4: opens Digital Wellbeing's page for the app (Android 10+, when the phone has it)"
 Allow home screen rotation setting,layout,could,yes,yes,M4: off keeps home upright; tablets and foldables always rotate
-"Provably private: open-source licence, privacy page, F-Droid metadata, no-tracker build check",core,should,no,partial,"F1: PRIVACY.md and checkNoTrackers (runs before every build; 131 libraries, none trackers; verified it fails on a blocked library). Licence and F-Droid metadata wait on the licence choice"
+"Provably private: open-source licence, privacy page, F-Droid metadata, no-tracker build check",core,should,no,yes,"F1: MIT LICENSE, PRIVACY.md, fastlane/F-Droid metadata, checkNoTrackers before every build (verified it fails on a blocked library); About links to the source and privacy page. Fonts stay under the OFL"
 "Home never freezes or goes blank on return (StrictMode, resume budget, 50x return test)",core,should,no,yes,"F2: resume work (setup checks, wallpaper colours) moved off the main thread; StrictMode in debug; UI test returns to home 50 times"
 "Favorites layout: alignment left/centre/right, icon grid, favorites count",home,should,no,yes,"F3: list or grid (4 or 5 across, names optional); left, centre or right with icons kept in one column. No favorites count cap (not needed)"
 Keep favorites in place (cards go below favorites or into the stack),home,could,no,yes,F4: Settings > Home screen > Keep favorites in place

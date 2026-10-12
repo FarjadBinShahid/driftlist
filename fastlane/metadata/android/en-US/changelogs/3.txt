@@ -1,0 +1,1 @@
+Grid or aligned favorites, more round-button gestures, typo-tolerant search, unread dots, and a home screen that stays responsive.

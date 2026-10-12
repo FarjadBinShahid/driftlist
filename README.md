@@ -2,19 +2,13 @@
 
 A calm, list-first Android launcher: favorites on the home screen, a wave alphabet on the edge to reach any app with one thumb, and notifications shown next to the apps they belong to.
 
-It's a personal, clean-room project inspired by the UX of Niagara Launcher. No code, assets or copy come from the original.
+It's a clean-room project inspired by the UX of Niagara Launcher. No code, assets or copy come from the original.
+
+**Open source, no trackers, nothing to pay.** No accounts, no analytics, no ads, and no network requests unless you turn on web suggestions in search. See [PRIVACY.md](PRIVACY.md); every build runs `checkNoTrackers`, which fails if a tracking, ads or crash-reporting library is ever added.
 
 ## Status
 
-Milestone 2 (0.2.0): onboarding, search, edit favorites, folders, rename and hide, inline reply, app shortcuts, a header widget, icon packs, Time checks, backup and restore, settings.
-
-Milestone 1 (vertical slice):
-
-- Set as the default launcher
-- Favorites with clock and date
-- A–Z app list with the wave alphabet
-- Inline notification previews and the app pop-up
-- App options: favorite, app info, uninstall
+0.3.0: everything Niagara Launcher offers (except weather), plus fixes for what its users complain about most (`replica/fixes.md`): favorites grid and alignment, more round-button gestures, typo-tolerant search, unread dots, and a home screen that stays responsive. Progress is tracked in `replica/features.csv`.
 
 ## Build
 
@@ -40,3 +34,9 @@ Kotlin, Jetpack Compose (Material 3), Room, coroutines/Flow. On-device only: no 
 - `replica/architecture.md`: stack, entry points, jobs and build order
 - `replica/schema.sql`: full on-device schema (Room implements it table by table)
 - `replica/design/`: design tokens (`tokens.json`), contrast checker, Compose token generator and component specs
+
+## Licence
+
+Driftlist is released under the [MIT License](LICENSE).
+
+The bundled fonts (Manrope, Outfit, Space Grotesk, Comfortaa, Lora, Playfair Display, Fraunces, DM Serif Display, JetBrains Mono, Bebas Neue, Caveat) are not covered by the MIT License. They are unmodified files from [google/fonts](https://github.com/google/fonts) under the SIL Open Font License 1.1; each licence is in `app/src/main/assets/licenses/fonts/` and shown in Settings > About > Font licences.
