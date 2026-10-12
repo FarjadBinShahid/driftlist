@@ -84,4 +84,14 @@ class AgendaTest {
         assertEquals("Tomorrow", Agenda.dayLabel(today.plusDays(1), today, locale))
         assertEquals("Wednesday, October 14", Agenda.dayLabel(today.plusDays(2), today, locale))
     }
+
+    @Test
+    fun sameEventInTwoCalendarsShowsOnce() {
+        val holiday = allDay("Durga Puja", today)
+        val copy = holiday.copy(instanceId = 99, eventId = 99, calendarId = 2, title = "durga puja ")
+        val other = allDay("Durga Puja", today.plusDays(1))
+        val meeting = timed("Standup", at(today, 9), at(today, 10))
+        val moved = meeting.copy(instanceId = 98, eventId = 98, calendarId = 2, begin = at(today, 11), end = at(today, 12))
+        assertEquals(listOf(holiday, other, meeting, moved), Agenda.distinct(listOf(holiday, copy, other, meeting, moved)))
+    }
 }

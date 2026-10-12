@@ -30,6 +30,14 @@ object Agenda {
 
     val CalEvent.displayTitle: String get() = title.ifBlank { "(No title)" }
 
+    /**
+     * One row per event when it sits in several calendars (a holiday in both the phone's and the
+     * Google calendar, a meeting invite copied across accounts): same title, ignoring case and
+     * spaces, and the same start and end. The first copy wins.
+     */
+    fun distinct(events: List<CalEvent>): List<CalEvent> =
+        events.distinctBy { listOf(it.title.trim().lowercase(), it.begin, it.end, it.allDay) }
+
     /** First and last day an event covers. All-day events are stored as UTC midnights, end exclusive. */
     fun daysOf(e: CalEvent, zone: ZoneId): Pair<LocalDate, LocalDate> = if (e.allDay) {
         val first = Instant.ofEpochMilli(e.begin).atZone(ZoneOffset.UTC).toLocalDate()

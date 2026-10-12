@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -256,7 +257,9 @@ internal fun NotificationCard(
                     }
                 },
         ) {
-            Column(Modifier.padding(SpaceTokens.s5)) {
+            val buttons = !replying && ((canReply && item.replyAction != null) || item.buttonActions.isNotEmpty())
+            // Buttons carry their own 48dp touch height, so the card's bottom padding shrinks under them.
+            Column(Modifier.padding(start = SpaceTokens.s5, end = SpaceTokens.s5, top = SpaceTokens.s5, bottom = if (buttons) SpaceTokens.s2 else SpaceTokens.s5)) {
                 item.title?.let {
                     Text(it, style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -292,14 +295,16 @@ internal fun NotificationCard(
                         },
                         maxLines = 4,
                     )
-                } else if ((canReply && item.replyAction != null) || item.buttonActions.isNotEmpty()) {
-                    // Wraps instead of cutting a third button short on narrow phones ("Mu..." for Mute).
-                    FlowRow(Modifier.padding(top = SpaceTokens.s2), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s2)) {
+                } else if (buttons) {
+                    // Compact, left-aligned with the text above, and wrapping instead of cutting a
+                    // third button short on narrow phones ("Mu..." for Mute).
+                    val pad = PaddingValues(horizontal = SpaceTokens.s3)
+                    FlowRow(Modifier.padding(top = SpaceTokens.s1).offset(x = -SpaceTokens.s3)) {
                         if (canReply && item.replyAction != null) {
-                            TextButton(onClick = { replying = true; status = null }) { Text("Reply") }
+                            TextButton(onClick = { replying = true; status = null }, contentPadding = pad) { Text("Reply") }
                         }
                         item.buttonActions.forEach { action ->
-                            TextButton(onClick = { onAction(action) }) {
+                            TextButton(onClick = { onAction(action) }, contentPadding = pad) {
                                 Text(action.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }

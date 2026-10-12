@@ -14,6 +14,7 @@ import android.provider.CalendarContract.Calendars
 import android.provider.CalendarContract.Events
 import android.provider.CalendarContract.Instances
 import androidx.core.content.ContextCompat
+import dev.farjad.letterline.domain.Agenda
 import dev.farjad.letterline.domain.CalEvent
 import dev.farjad.letterline.system.SystemActions
 import kotlinx.coroutines.channels.awaitClose
@@ -87,7 +88,7 @@ class CalendarSource(private val context: Context) {
         val today = LocalDate.now(zone)
         val from = today.minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val to = today.plusDays(8).atStartOfDay(zone).toInstant().toEpochMilli()
-        return events(from, to).filter { it.calendarId !in hiddenCalendars }
+        return Agenda.distinct(events(from, to).filter { it.calendarId !in hiddenCalendars })
     }
 
     fun events(fromMs: Long, toMs: Long): List<CalEvent> = guarded {

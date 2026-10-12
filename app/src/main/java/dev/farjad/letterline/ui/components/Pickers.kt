@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -110,7 +112,11 @@ fun ColumnScope.AppMultiPicker(
             modifier = Modifier.padding(SpaceTokens.s7),
         )
     }
-    LazyColumn(Modifier.weight(1f).fillMaxWidth()) {
+    // Keyed rows keep the first visible app in place across list changes, so clearing a search for
+    // "Chrome" used to leave the full list scrolled to C. Every new search starts at the top.
+    val listState = rememberLazyListState()
+    LaunchedEffect(query) { listState.scrollToItem(0) }
+    LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = listState) {
         items(shown, key = { it.id }) { app ->
             val checked = app.id in selected
             SheetAppRow(app, icons, onClick = { onToggle(app) }) {

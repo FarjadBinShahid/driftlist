@@ -43,6 +43,17 @@ private val LightScheme = lightColorScheme(
     onPrimary = LightTokens.onAccent,
     primaryContainer = LightTokens.accentContainer,
     onPrimaryContainer = LightTokens.onAccentContainer,
+    // Tonal buttons, chips and switches read the secondary and tertiary roles; left unset they
+    // fall back to Material's purple baseline instead of the theme's accent.
+    secondary = LightTokens.accent,
+    onSecondary = LightTokens.onAccent,
+    secondaryContainer = LightTokens.accentContainer,
+    onSecondaryContainer = LightTokens.onAccentContainer,
+    tertiary = LightTokens.accent,
+    onTertiary = LightTokens.onAccent,
+    tertiaryContainer = LightTokens.accentContainer,
+    onTertiaryContainer = LightTokens.onAccentContainer,
+    surfaceTint = LightTokens.accent,
     background = LightTokens.bg,
     onBackground = LightTokens.text,
     surface = LightTokens.surfaceRaised,
@@ -62,6 +73,17 @@ private val DarkScheme = darkColorScheme(
     onPrimary = DarkTokens.onAccent,
     primaryContainer = DarkTokens.accentContainer,
     onPrimaryContainer = DarkTokens.onAccentContainer,
+    // Tonal buttons, chips and switches read the secondary and tertiary roles; left unset they
+    // fall back to Material's purple baseline instead of the theme's accent.
+    secondary = DarkTokens.accent,
+    onSecondary = DarkTokens.onAccent,
+    secondaryContainer = DarkTokens.accentContainer,
+    onSecondaryContainer = DarkTokens.onAccentContainer,
+    tertiary = DarkTokens.accent,
+    onTertiary = DarkTokens.onAccent,
+    tertiaryContainer = DarkTokens.accentContainer,
+    onTertiaryContainer = DarkTokens.onAccentContainer,
+    surfaceTint = DarkTokens.accent,
     background = DarkTokens.bg,
     onBackground = DarkTokens.text,
     surface = DarkTokens.surfaceRaised,
@@ -113,8 +135,15 @@ private fun schemeFor(dark: Boolean, seed: Int?): ColorScheme {
         onPrimary = Color(set.onAccent),
         primaryContainer = Color(set.container),
         onPrimaryContainer = Color(set.onContainer),
+        secondary = Color(set.accent),
+        onSecondary = Color(set.onAccent),
         secondaryContainer = Color(set.container),
         onSecondaryContainer = Color(set.onContainer),
+        tertiary = Color(set.accent),
+        onTertiary = Color(set.onAccent),
+        tertiaryContainer = Color(set.container),
+        onTertiaryContainer = Color(set.onContainer),
+        surfaceTint = Color(set.accent),
     )
 }
 
