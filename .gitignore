@@ -32,3 +32,6 @@ dist/
 keystore/
 test.log
 replica/diffs/*.png
+
+# Full review texts: other people's writing, kept local (the analysis quotes short excerpts with links)
+replica/reviews.csv

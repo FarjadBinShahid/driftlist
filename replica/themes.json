@@ -1,0 +1,425 @@
+{
+ "_about": "replica-entrepreneur themes plus launcher-specific ones for Niagara Launcher (Driftlist research).",
+ "request_patterns": [
+  "\\bi wish\\b",
+  "\\bplease add\\b",
+  "\\bwould be (nice|great|good|helpful)\\b",
+  "\\bwould love\\b",
+  "\\bneeds? (a|an|the|to|more)\\b",
+  "\\bno way to\\b",
+  "\\bthere'?s no (way|option)\\b",
+  "\\b(can'?t|cannot|unable to) (even )?(add|change|edit|set|choose|export|import|customi[sz]e|connect|undo|delete|turn off)\\b",
+  "\\b(missing|lacks|lacking)\\b",
+  "\\bdoesn'?t (have|support|let|allow)\\b",
+  "\\bif only\\b",
+  "\\bfeature request\\b",
+  "\\bwhy (can'?t|isn'?t|doesn'?t)\\b"
+ ],
+ "themes": [
+  {
+   "id": "pricing",
+   "label": "Price and paywalls",
+   "kind": "complaint",
+   "patterns": [
+    "\\bexpensive\\b",
+    "\\boverpriced\\b",
+    "\\bpric(e|es|ey|ing)\\b",
+    "\\bpaywall",
+    "\\bsubscription\\b",
+    "\\bper (month|seat|user)\\b",
+    "\\bfree (plan|tier|version)\\b",
+    "\\bupgrade to\\b",
+    "\\bpremium\\b",
+    "\\bnot worth\\b",
+    "\\bcost(s|ly)?\\b"
+   ]
+  },
+  {
+   "id": "billing",
+   "label": "Billing, cancelling and refunds",
+   "kind": "complaint",
+   "patterns": [
+    "\\bcharged\\b",
+    "\\brefund",
+    "\\bcancel(l?ing|l?ed|lation)?\\b",
+    "\\bauto.?renew",
+    "\\bhidden (fee|charge)",
+    "\\bbilling\\b",
+    "\\bscam\\b",
+    "\\bcredit card\\b"
+   ]
+  },
+  {
+   "id": "bugs",
+   "label": "Bugs and crashes",
+   "kind": "complaint",
+   "patterns": [
+    "\\bcrash(es|ed|ing)?\\b",
+    "\\bbugs?\\b",
+    "\\bbuggy\\b",
+    "\\bglitch",
+    "\\bfreez(e|es|ing)\\b",
+    "\\bbroken\\b",
+    "\\b(doesn'?t|does not|stopped) work",
+    "\\bnot working\\b",
+    "\\berror\\b"
+   ]
+  },
+  {
+   "id": "performance",
+   "label": "Slow, laggy, heavy",
+   "kind": "complaint",
+   "patterns": [
+    "\\bslow\\b",
+    "\\blag(gy|s)?\\b",
+    "\\bloading\\b",
+    "\\btakes forever\\b",
+    "\\bbattery\\b",
+    "\\bsluggish\\b",
+    "\\bheavy\\b"
+   ]
+  },
+  {
+   "id": "data",
+   "label": "Sync and lost data",
+   "kind": "complaint",
+   "patterns": [
+    "\\bsync(ing|s|ed)?\\b",
+    "\\blost (my|all)\\b",
+    "\\bdisappear",
+    "\\bdata loss\\b",
+    "\\bwiped\\b",
+    "\\bbackup\\b",
+    "\\bduplicat"
+   ]
+  },
+  {
+   "id": "ux",
+   "label": "Confusing or clunky to use",
+   "kind": "complaint",
+   "patterns": [
+    "\\bconfus",
+    "\\bhard to (use|find|navigate|understand)\\b",
+    "\\bcomplicated\\b",
+    "\\bcluttered\\b",
+    "\\bunintuitive\\b",
+    "\\bnot intuitive\\b",
+    "\\bclunky\\b",
+    "\\btoo many (steps|clicks|taps)\\b",
+    "\\blearning curve\\b",
+    "\\bcan'?t find\\b"
+   ]
+  },
+  {
+   "id": "support",
+   "label": "Support that does not answer",
+   "kind": "complaint",
+   "patterns": [
+    "\\bcustomer (service|support)\\b",
+    "\\bsupport (team|is|was)\\b",
+    "\\bno (response|reply)\\b",
+    "\\bnever (replied|responded|heard back)\\b",
+    "\\bticket\\b",
+    "\\bchat ?bot\\b"
+   ]
+  },
+  {
+   "id": "account",
+   "label": "Login and account problems",
+   "kind": "complaint",
+   "patterns": [
+    "\\blog ?in\\b",
+    "\\bsign ?in\\b",
+    "\\bpassword\\b",
+    "\\blocked out\\b",
+    "\\bverification\\b",
+    "\\b2fa\\b",
+    "\\bdelete (my )?account\\b"
+   ]
+  },
+  {
+   "id": "notifications",
+   "label": "Notifications and spam",
+   "kind": "complaint",
+   "patterns": [
+    "\\bnotification",
+    "\\bspam",
+    "\\btoo many emails\\b",
+    "\\bpush\\b",
+    "\\breminders?\\b"
+   ]
+  },
+  {
+   "id": "ads",
+   "label": "Ads",
+   "kind": "complaint",
+   "patterns": [
+    "\\bads\\b",
+    "\\badvert",
+    "\\bad.?supported\\b",
+    "\\bpop.?ups?\\b"
+   ]
+  },
+  {
+   "id": "updates",
+   "label": "A redesign or update made it worse",
+   "kind": "complaint",
+   "patterns": [
+    "\\b(new|latest|recent) (update|version|design)\\b",
+    "\\bredesign",
+    "\\bused to be\\b",
+    "\\bbring back\\b",
+    "\\bsince the update\\b"
+   ]
+  },
+  {
+   "id": "privacy",
+   "label": "Privacy and permissions",
+   "kind": "complaint",
+   "patterns": [
+    "\\bprivacy\\b",
+    "\\btracking\\b",
+    "\\bsell(s|ing)? (my )?data\\b",
+    "\\bpermissions?\\b",
+    "\\bcreepy\\b"
+   ]
+  },
+  {
+   "id": "integrations",
+   "label": "Integrations, import and export",
+   "kind": "request",
+   "patterns": [
+    "\\bintegrat",
+    "\\bzapier\\b",
+    "\\bgoogle (calendar|sheets|drive)\\b",
+    "\\boutlook\\b",
+    "\\bslack\\b",
+    "\\bapi\\b",
+    "\\bexport\\b",
+    "\\bimport\\b",
+    "\\bcsv\\b",
+    "\\bwebhook"
+   ]
+  },
+  {
+   "id": "platforms",
+   "label": "Platforms, offline and mobile",
+   "kind": "request",
+   "patterns": [
+    "\\boffline\\b",
+    "\\bandroid\\b",
+    "\\bipad\\b",
+    "\\btablet\\b",
+    "\\bdesktop app\\b",
+    "\\bmac app\\b",
+    "\\bwindows\\b",
+    "\\bmobile (app|version)\\b",
+    "\\bweb version\\b"
+   ]
+  },
+  {
+   "id": "customisation",
+   "label": "Customisation and control",
+   "kind": "request",
+   "patterns": [
+    "\\bcustomi[sz]",
+    "\\bdark mode\\b",
+    "\\btheme\\b",
+    "\\bbranding\\b",
+    "\\bwhite.?label\\b",
+    "\\btemplates?\\b",
+    "\\bsettings?\\b",
+    "\\boption to\\b"
+   ]
+  },
+  {
+   "id": "collaboration",
+   "label": "Teams and sharing",
+   "kind": "request",
+   "patterns": [
+    "\\bteam(s|mates?)?\\b",
+    "\\bshar(e|ing)\\b",
+    "\\bcollaborat",
+    "\\bmultiple (users|accounts|people)\\b",
+    "\\broles?\\b",
+    "\\bpermissions for\\b"
+   ]
+  },
+  {
+   "id": "paywall-basics",
+   "label": "Basic features locked behind Pro",
+   "kind": "complaint",
+   "patterns": [
+    "\\bbehind (a |the )?pay ?wall\\b",
+    "\\blocked behind\\b",
+    "\\b(pro|paid|premium) (version|features?)\\b",
+    "\\bfree version\\b",
+    "\\bgreed(y|ily)\\b",
+    "\\bhave to pay\\b",
+    "\\bneed to pay\\b"
+   ]
+  },
+  {
+   "id": "lifetime-price",
+   "label": "Lifetime price and price rises",
+   "kind": "complaint",
+   "patterns": [
+    "\\blifetime\\b",
+    "\\bone.?time\\b",
+    "\\$\\s?\\d{2}",
+    "\\d+[,.]\\d{2}\\s?€",
+    "\\bincreased by\\b",
+    "\\bprice (rise|increase|hike)\\b",
+    "\\bper year\\b|\\byearly\\b|\\bannual\\b"
+   ]
+  },
+  {
+   "id": "finding-apps",
+   "label": "Hard to find apps without icons / by name only",
+   "kind": "complaint",
+   "patterns": [
+    "\\bvisual recognition\\b",
+    "\\brecogni[sz]e apps\\b",
+    "\\bnames of (your|the) apps\\b",
+    "\\bharder (for you )?to find\\b",
+    "\\bhave to read\\b",
+    "\\bglance\\b",
+    "\\bimpractical to (actually )?open\\b",
+    "\\bremember the name\\b"
+   ]
+  },
+  {
+   "id": "muscle-memory",
+   "label": "Home layout shifts and breaks muscle memory",
+   "kind": "complaint",
+   "patterns": [
+    "\\bmuscle memory\\b",
+    "\\bshift(s|ing)? (positions?|around)\\b",
+    "\\bmove(s|d)? around\\b",
+    "\\bsame place\\b",
+    "\\bjumps\\b"
+   ]
+  },
+  {
+   "id": "freezes",
+   "label": "Freezes, blank or unresponsive home screen",
+   "kind": "complaint",
+   "patterns": [
+    "\\bfreez",
+    "\\bunresponsive\\b",
+    "\\bblank screen\\b",
+    "\\bnot responding\\b",
+    "\\brecents?\\b|\\bopen apps\\b",
+    "\\block and (then )?unlock\\b"
+   ]
+  },
+  {
+   "id": "folders-categories",
+   "label": "Folders and categories in the app list",
+   "kind": "request",
+   "patterns": [
+    "\\bfolders?\\b",
+    "\\bcategor(y|ies)\\b",
+    "\\bgroups?\\b",
+    "\\btags?\\b"
+   ]
+  },
+  {
+   "id": "widgets",
+   "label": "Widgets: more room, more freedom",
+   "kind": "request",
+   "patterns": [
+    "\\bwidgets?\\b"
+   ]
+  },
+  {
+   "id": "layout-freedom",
+   "label": "Layout freedom (alignment, grid, position)",
+   "kind": "request",
+   "patterns": [
+    "\\bleft, center,? or right\\b",
+    "\\bto the (middle|right side)\\b",
+    "\\bin rows\\b",
+    "\\bhorizontally\\b",
+    "\\bgrid\\b",
+    "\\btwo.?column",
+    "\\bdensity\\b",
+    "\\bplace widgets where\\b"
+   ]
+  },
+  {
+   "id": "open-source-privacy",
+   "label": "Closed source, trackers, permissions",
+   "kind": "complaint",
+   "patterns": [
+    "\\bopen.?source\\b",
+    "\\bclosed.?source\\b",
+    "\\bf-?droid\\b",
+    "\\btrackers?\\b",
+    "\\bfirebase\\b",
+    "\\banalytics\\b",
+    "\\bproprietary\\b",
+    "\\bprivileges\\b",
+    "\\bfoss\\b"
+   ]
+  },
+  {
+   "id": "search-direct",
+   "label": "Search: direct, universal, contacts",
+   "kind": "request",
+   "patterns": [
+    "\\bsearch (directly|should include)\\b",
+    "\\buniversal search\\b",
+    "\\bcontact search\\b",
+    "\\bsearch DIRECTLY\\b",
+    "\\bfuzzy\\b"
+   ]
+  },
+  {
+   "id": "gestures",
+   "label": "More gestures",
+   "kind": "request",
+   "patterns": [
+    "\\bgestures?\\b",
+    "\\bdouble.?tap\\b",
+    "\\bswip(e|ing) (up|down) on\\b",
+    "\\bshortcut options\\b"
+   ]
+  },
+  {
+   "id": "themes-share",
+   "label": "Theme sharing and colours",
+   "kind": "request",
+   "patterns": [
+    "\\bdiscord\\b",
+    "\\bimport (those )?themes\\b",
+    "\\bcolou?r picker\\b",
+    "\\btheme colou?r",
+    "\\bfont colou?r\\b",
+    "\\bclock size\\b"
+   ]
+  },
+  {
+   "id": "notif-badges",
+   "label": "Notification dots and badges",
+   "kind": "request",
+   "patterns": [
+    "\\bred dot\\b",
+    "\\bnotification dots?\\b",
+    "\\bbadges?\\b",
+    "\\bunread\\b"
+   ]
+  },
+  {
+   "id": "calendar-tasks",
+   "label": "Calendar, tasks and agenda",
+   "kind": "request",
+   "patterns": [
+    "\\bgoogle tasks\\b",
+    "\\bagenda\\b",
+    "\\bcalendar\\b",
+    "\\bweather\\b"
+   ]
+  }
+ ]
+}
