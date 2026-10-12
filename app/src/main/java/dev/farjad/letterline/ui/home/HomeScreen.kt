@@ -1002,7 +1002,7 @@ private fun AppListPane(
             item(key = "header:${section.letter}") {
                 Text(
                     section.letter,
-                    style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
+                    style = TypeTokens.letterHeader.onWallpaper(colors),
                     modifier = Modifier
                         .padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2)
                         .semantics { heading() },
@@ -1014,7 +1014,7 @@ private fun AppListPane(
             item(key = "header:folders") {
                 Text(
                     "Folders",
-                    style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
+                    style = TypeTokens.letterHeader.onWallpaper(colors),
                     modifier = Modifier.padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2).semantics { heading() },
                 )
             }
@@ -1027,7 +1027,7 @@ private fun AppListPane(
         item(key = "header:letterline") {
             Text(
                 "Letterline",
-                style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
+                style = TypeTokens.letterHeader.onWallpaper(colors),
                 modifier = Modifier
                     .padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2)
                     .semantics { heading() },

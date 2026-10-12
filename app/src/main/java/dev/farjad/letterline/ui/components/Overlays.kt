@@ -247,7 +247,7 @@ private const val SUGGEST_DEBOUNCE_MS = 250L
 private fun SectionLabel(text: String) {
     Text(
         text,
-        style = TypeTokens.letterHeader.style(MaterialTheme.colorScheme.primary),
+        style = TypeTokens.label.style(MaterialTheme.colorScheme.primary),
         modifier = Modifier.padding(horizontal = SpaceTokens.s7, vertical = SpaceTokens.s3).semantics { heading() },
     )
 }

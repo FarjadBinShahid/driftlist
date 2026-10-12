@@ -62,7 +62,7 @@ object TypeTokens {
     val date = TypeToken(15f, 21f, FontWeight(500), 0.2f)
     val favorite = TypeToken(15f, 22f, FontWeight(500), 0f)
     val list = TypeToken(15f, 22f, FontWeight(500), 0f)
-    val letterHeader = TypeToken(14f, 20f, FontWeight(700), 1.2f)
+    val letterHeader = TypeToken(18f, 24f, FontWeight(700), 0f)
     val preview = TypeToken(14f, 19f, FontWeight(400), 0f)
     val alphabet = TypeToken(11f, 14f, FontWeight(600), 0f)
     val title = TypeToken(20f, 28f, FontWeight(600), 0f)

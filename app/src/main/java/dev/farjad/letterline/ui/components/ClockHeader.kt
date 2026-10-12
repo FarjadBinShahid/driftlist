@@ -73,7 +73,7 @@ fun ClockHeader(
 
     val locale = Locale.getDefault()
     val time = now.format(DateTimeFormatter.ofPattern(if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm", locale))
-    val date = now.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEEEdMMMM"), locale))
+    val date = now.format(DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "EEEdMMM"), locale))
 
     val clockStyle = LocalClockStyle.current
     val clockModifier = Modifier
