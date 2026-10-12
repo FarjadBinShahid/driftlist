@@ -1,6 +1,17 @@
 package dev.farjad.letterline.ui.home
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
@@ -1011,45 +1022,29 @@ private fun AppListPane(
                 FolderRow(title = entry.folder.title, apps = entry.apps, icons = icons, preview = null, onClick = { onFolderClick(entry) }, onLongClick = { onFolderClick(entry) })
             }
         }
+        // The end of the list, where the circle on the letters lands: Letterline's own rows, laid
+        // out like app rows under their own heading.
+        item(key = "header:letterline") {
+            Text(
+                "Letterline",
+                style = TypeTokens.letterHeader.onWallpaper(colors, colors.textMuted),
+                modifier = Modifier
+                    .padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2)
+                    .semantics { heading() },
+            )
+        }
         if (hasWorkProfile) {
             item(key = "footer:work") {
-                Text(
-                    if (workPaused) "Turn on work apps" else "Pause work apps",
-                    style = TypeTokens.list.onWallpaper(colors, colors.textMuted),
-                    modifier = Modifier
-                        .padding(top = SpaceTokens.s7)
-                        .fillMaxWidth()
-                        .heightIn(min = SizeTokens.listRow)
-                        .clickable(onClick = onToggleWork)
-                        .padding(vertical = SpaceTokens.s4),
-                )
+                FooterRow(if (workPaused) "Turn on work apps" else "Pause work apps", Icons.Outlined.Work, onToggleWork)
             }
         }
         if (recentCount > 0) {
             item(key = "footer:recent") {
-                Text(
-                    "Recently installed ($recentCount)",
-                    style = TypeTokens.list.onWallpaper(colors, colors.textMuted),
-                    modifier = Modifier
-                        .padding(top = SpaceTokens.s7)
-                        .fillMaxWidth()
-                        .heightIn(min = SizeTokens.listRow)
-                        .clickable(onClick = onRecent)
-                        .padding(vertical = SpaceTokens.s4),
-                )
+                FooterRow("Recently installed ($recentCount)", Icons.Outlined.History, onRecent)
             }
         }
         item(key = "footer:settings") {
-            Text(
-                "Letterline settings",
-                style = TypeTokens.list.onWallpaper(colors, colors.textMuted),
-                modifier = Modifier
-                    .padding(top = SpaceTokens.s7)
-                    .fillMaxWidth()
-                    .heightIn(min = SizeTokens.listRow)
-                    .clickable(onClick = onOpenSettings)
-                    .padding(vertical = SpaceTokens.s4),
-            )
+            FooterRow("Letterline settings", Icons.Outlined.Settings, onOpenSettings)
         }
     }
     SearchButton(
@@ -1062,3 +1057,27 @@ private fun AppListPane(
 }
 
 private const val LIST_RETURN_MS = 3_000L
+
+/** A row at the end of the list: a round accent icon and a label, sized like an app row. */
+@Composable
+private fun FooterRow(label: String, icon: ImageVector, onClick: () -> Unit) {
+    val colors = LocalHomeColors.current
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = SizeTokens.listRow)
+            .clickable(onClick = onClick)
+            .padding(vertical = SpaceTokens.s2),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(SizeTokens.iconLabelGap),
+    ) {
+        Box(
+            Modifier.size(SizeTokens.iconList).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        }
+        Text(label, style = TypeTokens.list.onWallpaper(colors), maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+

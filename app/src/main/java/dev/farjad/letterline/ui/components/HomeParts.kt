@@ -1,11 +1,14 @@
 package dev.farjad.letterline.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.outlined.FlashlightOn
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.heading
 import dev.farjad.letterline.ui.theme.onWallpaper
 import androidx.compose.material3.FilterChip
@@ -59,6 +62,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,7 +90,10 @@ import dev.farjad.letterline.ui.theme.SpaceTokens
 import dev.farjad.letterline.ui.theme.TypeTokens
 import dev.farjad.letterline.ui.theme.style
 
-/** Music card under the header while something plays (or is paused). */
+/**
+ * Music under the header, drawn straight on the wallpaper like the app rows: the cover on the
+ * left, title and artist in the home font beside it, and the controls underneath, play in a ring.
+ */
 @Composable
 fun MediaCard(
     media: MediaState,
@@ -96,43 +103,48 @@ fun MediaCard(
     onPrevious: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
-        shape = RoundedCornerShape(RadiusTokens.lg),
-        modifier = modifier
+    val colors = LocalHomeColors.current
+    Row(
+        modifier
             .fillMaxWidth()
-            .heightIn(min = SizeTokens.mediaCardHeight)
             .clickable(onClickLabel = "Open the player", onClick = onOpen)
             .semantics { contentDescription = "Now playing ${media.title}" + (media.artist?.let { " by $it" } ?: "") },
+        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s5),
     ) {
-        Row(Modifier.padding(SpaceTokens.s4), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4)) {
-            Box(
-                Modifier.size(56.dp).clip(RoundedCornerShape(RadiusTokens.md)).background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (media.art != null) {
-                    Image(media.art.asImageBitmap(), null, Modifier.size(56.dp))
-                } else {
-                    Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
+        Box(
+            Modifier.size(SizeTokens.mediaArt).clip(RoundedCornerShape(RadiusTokens.sm)).background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (media.art != null) {
+                Image(media.art.asImageBitmap(), null, Modifier.size(SizeTokens.mediaArt), contentScale = ContentScale.Crop)
+            } else {
+                Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            // Text above the buttons, not beside them: on a 360dp phone the art and three buttons
-            // left the title no room at all.
-            Column(Modifier.weight(1f)) {
-                Text(media.title, style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                media.artist?.let {
-                    Text(it, style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Column(Modifier.weight(1f).height(SizeTokens.mediaArt)) {
+            Text(media.title, style = TypeTokens.list.onWallpaper(colors).copy(fontWeight = FontWeight.Bold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            media.artist?.let {
+                Text(it, style = TypeTokens.bodySm.onWallpaper(colors, colors.textMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
+                if (media.canSkip) {
+                    IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous", tint = colors.text) }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (media.canSkip) {
-                        IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous") }
+                IconButton(onClick = onPlayPause) {
+                    Box(
+                        Modifier.size(SizeTokens.mediaPlayRing).border(2.dp, colors.text, CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            if (media.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (media.playing) "Pause" else "Play",
+                            tint = colors.text,
+                        )
                     }
-                    IconButton(onClick = onPlayPause) {
-                        Icon(if (media.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (media.playing) "Pause" else "Play")
-                    }
-                    if (media.canSkip) {
-                        IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, contentDescription = "Next") }
-                    }
+                }
+                if (media.canSkip) {
+                    IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, contentDescription = "Next", tint = colors.text) }
                 }
             }
         }

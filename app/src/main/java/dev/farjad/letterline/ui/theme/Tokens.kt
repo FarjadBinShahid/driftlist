@@ -101,11 +101,14 @@ object SizeTokens {
     val alphabetTouchWidth = 48.dp
     val alphabetBubble = 56.dp
     val actionButton = 56.dp
-    val edgeGutter = 40.dp
+    val edgeGutter = 46.dp
+    val iconLabelGap = 20.dp
     val sheetHandleWidth = 32.dp
     val sheetHandleHeight = 4.dp
     val settingsRow = 64.dp
     val mediaCardHeight = 88.dp
+    val mediaArt = 88.dp
+    val mediaPlayRing = 40.dp
     const val headerTopSpaceRatio = 0.13f
     const val alphabetTopRatio = 0.24f
     const val alphabetBottomRatio = 0.91f

@@ -186,9 +186,9 @@ fun LauncherRow(
             .padding(vertical = SpaceTokens.s2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = when (align) {
-            "center" -> Arrangement.spacedBy(SpaceTokens.s4, Alignment.CenterHorizontally)
-            "end" -> Arrangement.spacedBy(SpaceTokens.s4, Alignment.End)
-            else -> Arrangement.spacedBy(SpaceTokens.s4)
+            "center" -> Arrangement.spacedBy(SizeTokens.iconLabelGap, Alignment.CenterHorizontally)
+            "end" -> Arrangement.spacedBy(SizeTokens.iconLabelGap, Alignment.End)
+            else -> Arrangement.spacedBy(SizeTokens.iconLabelGap)
         },
     ) {
         when (LocalIconStyle.current) {

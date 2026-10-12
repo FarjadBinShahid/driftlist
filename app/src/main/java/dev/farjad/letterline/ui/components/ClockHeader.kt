@@ -1,11 +1,16 @@
 package dev.farjad.letterline.ui.components
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.LastBaseline
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import dev.farjad.letterline.data.ClockStyle
 import dev.farjad.letterline.ui.theme.LocalClockStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
 import dev.farjad.letterline.domain.Agenda
 import dev.farjad.letterline.domain.CalEvent
@@ -28,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -71,27 +77,32 @@ fun ClockHeader(
 
     val clockStyle = LocalClockStyle.current
     val clockModifier = Modifier
+        .trimBelowBaseline(SpaceTokens.s2)
         .combinedClickable(onClick = onClockClick, onLongClick = onLongClick)
         .semantics(mergeDescendants = true) { contentDescription = "$time, open clock. Long-press for header options" }
     val dateText: @Composable () -> Unit = {
         Text(
             date,
             style = TypeTokens.date.onWallpaper(colors),
+            // Sits right under the time, as on the reference: no 48dp box around it, just a little
+            // padding, so the header reads as one block.
             modifier = Modifier
-                .heightIn(min = SizeTokens.touchMin)
-                .wrapContentHeight(Alignment.CenterVertically)
                 .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
+                .padding(vertical = SpaceTokens.s1)
                 .semantics { contentDescription = if (dateOpensAgenda) "$date, show the week ahead" else "$date, open calendar" },
         )
     }
 
+    // Big clock digits carry a font's full ascent and descent; trimming the line box keeps the
+    // date tucked under the digits instead of a line-height away.
+    val trim = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.Both)
     Column(modifier) {
         when (clockStyle) {
-            ClockStyle.Thin -> Text(time, style = TypeTokens.clock.onWallpaper(colors), modifier = clockModifier)
-            ClockStyle.Bold -> Text(time, style = TypeTokens.clockBold.onWallpaper(colors), modifier = clockModifier)
+            ClockStyle.Thin -> Text(time, style = TypeTokens.clock.onWallpaper(colors).copy(lineHeightStyle = trim), modifier = clockModifier)
+            ClockStyle.Bold -> Text(time, style = TypeTokens.clockBold.onWallpaper(colors).copy(lineHeightStyle = trim), modifier = clockModifier)
             ClockStyle.Mono -> Text(
                 time,
-                style = TypeTokens.clockMono.onWallpaper(colors).copy(fontFamily = FontFamily.Monospace),
+                style = TypeTokens.clockMono.onWallpaper(colors).copy(fontFamily = FontFamily.Monospace, lineHeightStyle = trim),
                 modifier = clockModifier,
             )
             ClockStyle.Stacked -> {
@@ -112,8 +123,9 @@ fun ClockHeader(
             val line = Agenda.headerLine(next, now.toInstant().toEpochMilli(), now.zone, DateFormat.is24HourFormat(context), locale)
             Row(
                 Modifier
-                    .heightIn(min = SizeTokens.touchMin)
+                    .padding(top = SpaceTokens.s2)
                     .combinedClickable(onClick = onDateClick, onLongClick = onLongClick)
+                    .padding(vertical = SpaceTokens.s2)
                     .semantics(mergeDescendants = true) { contentDescription = "Next: $line. Show the week ahead" },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3),
@@ -129,3 +141,15 @@ fun ClockHeader(
         }
     }
 }
+
+/**
+ * Ends the layout a little under the last baseline. Big clock digits have no descenders, so the
+ * font's descent is just empty space between the time and the date.
+ */
+private fun Modifier.trimBelowBaseline(gap: Dp) = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints)
+    val baseline = placeable[LastBaseline]
+    val height = if (baseline == AlignmentLine.Unspecified) placeable.height else minOf(placeable.height, baseline + gap.roundToPx())
+    layout(placeable.width, height) { placeable.place(0, 0) }
+}
+
