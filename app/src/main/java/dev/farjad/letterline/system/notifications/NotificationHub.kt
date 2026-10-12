@@ -179,6 +179,8 @@ class NotificationHub(private val context: Context) {
         if (n.flags and Notification.FLAG_GROUP_SUMMARY != 0) return null
         if (sbn.isOngoing) return null // media, downloads, navigation: not "news"
         val extras = n.extras
+        // A paused player's notification stops being ongoing, but the media card already shows it.
+        if (extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) return null
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT)
             ?: extras.getCharSequence(Notification.EXTRA_TEXT))?.toString()

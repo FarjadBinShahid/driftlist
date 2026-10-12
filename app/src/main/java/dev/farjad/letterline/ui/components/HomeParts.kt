@@ -116,20 +116,24 @@ fun MediaCard(
                     Icon(Icons.Outlined.MusicNote, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
+            // Text above the buttons, not beside them: on a 360dp phone the art and three buttons
+            // left the title no room at all.
             Column(Modifier.weight(1f)) {
                 Text(media.title, style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 media.artist?.let {
                     Text(it, style = TypeTokens.bodySm.style(MaterialTheme.colorScheme.onSurfaceVariant), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-            }
-            if (media.canSkip) {
-                IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous") }
-            }
-            IconButton(onClick = onPlayPause) {
-                Icon(if (media.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (media.playing) "Pause" else "Play")
-            }
-            if (media.canSkip) {
-                IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, contentDescription = "Next") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (media.canSkip) {
+                        IconButton(onClick = onPrevious) { Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous") }
+                    }
+                    IconButton(onClick = onPlayPause) {
+                        Icon(if (media.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = if (media.playing) "Pause" else "Play")
+                    }
+                    if (media.canSkip) {
+                        IconButton(onClick = onNext) { Icon(Icons.Filled.SkipNext, contentDescription = "Next") }
+                    }
+                }
             }
         }
     }

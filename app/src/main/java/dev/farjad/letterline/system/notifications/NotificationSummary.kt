@@ -53,6 +53,7 @@ class NotificationSummary(
     fun intercept(sbn: StatusBarNotification): Boolean {
         if (!enabled || sbn.packageName == context.packageName) return false
         if (sbn.isOngoing || !sbn.isClearable) return false
+        if (sbn.notification.extras.containsKey(Notification.EXTRA_MEDIA_SESSION)) return false
         if (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0) return false
         if (sbn.packageName !in rules.value) return false
         val extras = sbn.notification.extras

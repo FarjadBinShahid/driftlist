@@ -1,0 +1,1 @@
+Driftlist is now Letterline, with a new moss-green icon and accent. Clearer wording throughout, and the source code link points to the renamed repository.

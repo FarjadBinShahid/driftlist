@@ -8,7 +8,7 @@ It's an independent, clean-room project inspired by minimalist list launchers. N
 
 ## Status
 
-0.3.0: a complete list launcher (everything except weather), plus fixes for what launcher users complain about most (`replica/fixes.md`): favorites grid and alignment, more round-button gestures, typo-tolerant search, unread dots, and a home screen that stays responsive. Progress is tracked in `replica/features.csv`.
+0.4.0: a complete list launcher (everything except weather), plus fixes for what launcher users complain about most (`replica/fixes.md`): favorites grid and alignment, more round-button gestures, typo-tolerant search, unread dots, and a home screen that stays responsive. Progress is tracked in `replica/features.csv`.
 
 ## Build
 
