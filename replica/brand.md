@@ -97,4 +97,4 @@ Written into `replica/design/tokens.json` and regenerated into `Tokens.kt`. `con
 
 The old name is gone from the app, README, privacy page and store text. It remains only where it should:
 - Backups and theme files made before the rename still import.
-- The GitHub repository is still called `driftlist`. Renaming it is the user's call, and GitHub redirects the old URL.
+- The GitHub repository was renamed from `driftlist` to `letterline` on 2026-10-13; GitHub redirects the old URL.

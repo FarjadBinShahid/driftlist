@@ -279,7 +279,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
-private const val REPO_URL = "https://github.com/FarjadBinShahid/driftlist"
+private const val REPO_URL = "https://github.com/FarjadBinShahid/letterline"
 
 internal enum class Page(val title: String, val parent: Page? = null) {
     Root("Settings"),
