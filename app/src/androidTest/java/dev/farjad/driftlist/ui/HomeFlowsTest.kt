@@ -161,6 +161,46 @@ class HomeFlowsTest {
         }
     }
 
+    // F2 (fixes.md): leaving and returning to home many times never leaves it frozen or blank
+    @Test
+    fun homeStaysResponsiveAfterManyReturns() {
+        TestState.reset(favorites = listOf("Clock", "Camera"))
+        home {
+            waitForText("Clock")
+            repeat(50) {
+                scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+                scenario!!.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED)
+            }
+            waitForText("Camera")
+            onNodeWithText("Camera").performTouchInput { longClick() }
+            waitForText("App info")
+        }
+    }
+
+    // F3 + F6 (fixes.md): favorites as an icon grid, and the search pill
+    @Test
+    fun favoritesGridAndSearchPill() {
+        TestState.reset(favorites = listOf("Clock", "Camera", "Chrome")) { c ->
+            c.settings.setFavoritesLayout("start", 4)
+            c.settings.setFlag("search_pill", true)
+        }
+        try {
+            home {
+                waitUntil(timeoutMillis = 5_000) { onAllNodes(hasContentDescription("Chrome")).fetchSemanticsNodes().isNotEmpty() }
+                onNodeWithContentDescription("Chrome").performTouchInput { longClick() }
+                waitForText("App info")
+                pressBack()
+                onNodeWithText("Search").performClick()
+                waitForText("Search apps")
+            }
+        } finally {
+            runBlocking {
+                TestState.container.settings.setFavoritesLayout("start", 0)
+                TestState.container.settings.setFlag("search_pill", false)
+            }
+        }
+    }
+
     // F04-H4: the calculator answers sums typed into search
     @Test
     fun searchDoesSums() {

@@ -1,5 +1,7 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
@@ -126,6 +128,10 @@ fun LauncherRow(
     showDetailsButton: Boolean = false,
     modifier: Modifier = Modifier,
     dot: @Composable () -> Unit = { HomeDot(LocalHomeColors.current.text) },
+    align: String = "start",
+    unread: Boolean = false,
+    /** With centre or right alignment: every row's label takes this width, so icons line up. */
+    labelWidth: Dp? = null,
 ) {
     val colors = LocalHomeColors.current
     val haptics = LocalHapticFeedback.current
@@ -179,14 +185,24 @@ fun LauncherRow(
             }
             .padding(vertical = SpaceTokens.s2),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s4),
+        horizontalArrangement = when (align) {
+            "center" -> Arrangement.spacedBy(SpaceTokens.s4, Alignment.CenterHorizontally)
+            "end" -> Arrangement.spacedBy(SpaceTokens.s4, Alignment.End)
+            else -> Arrangement.spacedBy(SpaceTokens.s4)
+        },
     ) {
         when (LocalIconStyle.current) {
             IconStyle.Icons -> icon(iconSize)
             IconStyle.Dots -> Box(Modifier.size(SizeTokens.iconDotBox), contentAlignment = Alignment.Center) { dot() }
             IconStyle.None -> Unit
         }
-        Column(Modifier.weight(1f)) {
+        Column(
+            when {
+                align == "start" -> Modifier.weight(1f)
+                labelWidth != null -> Modifier.width(labelWidth)
+                else -> Modifier.weight(1f, fill = false)
+            },
+        ) {
             Text(
                 if (labelSuffix != null) "$label \u00B7 $labelSuffix" else label,
                 style = labelStyle,
@@ -201,6 +217,9 @@ fun LauncherRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        if (unread) {
+            Box(Modifier.size(SizeTokens.eventDot).clip(CircleShape).background(MaterialTheme.colorScheme.primary))
         }
         if (showDetailsButton && onSwipeRight != null) {
             IconButton(onClick = { onSwipeRight(bounds) }, modifier = Modifier.size(SizeTokens.rowAction)) {
@@ -229,12 +248,19 @@ fun AppRow(
     previewAge: String? = null,
     spokenLabel: String = app.label,
     paused: Boolean = false,
+    align: String = "start",
+    dotsOnly: Boolean = false,
+    labelWidth: Dp? = null,
 ) {
     LauncherRow(
         label = app.label,
         variant = variant,
         icon = { size -> AppIcon(app.id, icons, size) },
-        preview = if (paused) "Work apps are paused. Tap to turn them on" else preview,
+        preview = when {
+            paused -> "Work apps are paused. Tap to turn them on"
+            dotsOnly -> null
+            else -> preview
+        },
         a11yLabel = when {
             paused -> "$spokenLabel, paused"
             notificationCount > 0 -> "$spokenLabel, $notificationCount notifications"
@@ -243,8 +269,11 @@ fun AppRow(
         onClick = onClick,
         onLongClick = onLongClick,
         onSwipeRight = onSwipeRight,
-        labelSuffix = if (notificationCount > 0) previewAge else null,
-        showDetailsButton = notificationCount > 0,
+        labelSuffix = if (notificationCount > 0 && !dotsOnly) previewAge else null,
+        showDetailsButton = notificationCount > 0 && !dotsOnly,
+        align = align,
+        unread = dotsOnly && notificationCount > 0,
+        labelWidth = labelWidth,
         modifier = if (paused) modifier.alpha(PAUSED_ALPHA) else modifier,
         dot = { AppDot(app.id, icons) },
     )
@@ -260,6 +289,8 @@ fun FolderRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    align: String = "start",
+    labelWidth: Dp? = null,
 ) {
     LauncherRow(
         label = title,
@@ -272,6 +303,8 @@ fun FolderRow(
         onSwipeRight = null,
         modifier = modifier,
         dot = { HomeDot(LocalHomeColors.current.text, ring = true) },
+        align = align,
+        labelWidth = labelWidth,
     )
 }
 

@@ -27,8 +27,9 @@ class WallpaperWatcher(private val context: Context) {
         }
     }
 
+    /** Re-reads the wallpaper's colours off the main thread (it can take a while after a change). */
     fun refresh() {
-        _state.value = read()
+        Thread { _state.value = read() }.apply { name = "wallpaper-colors"; isDaemon = true }.start()
     }
 
     private fun read(): WallpaperInfo {

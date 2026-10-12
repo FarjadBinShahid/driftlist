@@ -257,14 +257,17 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     fun openEvent(event: CalEvent) = container.calendar.open(event)
     fun newCalendarEvent() = container.calendar.newEvent()
 
+    /** Runs on every return to home, so it does its checks off the main thread. */
     fun refreshSetup() {
         val app = getApplication<Application>()
-        container.calendar.refreshAccess()
-        container.notifications.ensureBound()
-        setup.value = SetupStatus(
-            isDefaultLauncher = SystemActions.isDefaultLauncher(app),
-            hasNotificationAccess = container.notifications.hasAccess(),
-        )
+        viewModelScope.launch(Dispatchers.Default) {
+            container.calendar.refreshAccess()
+            container.notifications.ensureBound()
+            setup.value = SetupStatus(
+                isDefaultLauncher = SystemActions.isDefaultLauncher(app),
+                hasNotificationAccess = container.notifications.hasAccess(),
+            )
+        }
     }
 
     fun setFavoritesAtBottom(value: Boolean) {
@@ -297,14 +300,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { container.settings.setFlag(name, value) }
     }
 
-    fun setButtonTarget(target: String?, swipe: Boolean = false) {
+    /** [slot]: 0 tap, 1 swipe up, 2 swipe down, 3 double-tap. Clearing the tap target turns the button off. */
+    fun setButtonTarget(target: String?, slot: Int = 0) {
         viewModelScope.launch {
-            if (swipe) {
-                container.settings.setButtonSwipeTarget(target)
-            } else {
-                container.settings.setButtonTarget(target)
-                container.settings.setFlag("button_enabled", target != null)
-            }
+            container.settings.setButtonSlot(slot, target)
+            if (slot == 0) container.settings.setFlag("button_enabled", target != null)
             repinShortcuts()
         }
     }
@@ -474,7 +474,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun repinShortcuts() {
         val stored = db.shortcutDao().all().map { (it.packageName to it.userSerial) to it.shortcutId }
         val s = container.settings.current()
-        val button = listOf(s.buttonTarget, s.buttonSwipeTarget).mapNotNull { ButtonTarget.parse(it) as? ButtonTarget.Shortcut }
+        val button = listOf(s.buttonTarget, s.buttonSwipeTarget, s.buttonDownTarget, s.buttonDoubleTarget).mapNotNull { ButtonTarget.parse(it) as? ButtonTarget.Shortcut }
             .map { (it.packageName to it.userSerial) to it.shortcutId }
         container.catalog.pinShortcuts((stored + button).groupBy({ it.first }, { it.second }).mapValues { (_, ids) -> ids.distinct() })
     }

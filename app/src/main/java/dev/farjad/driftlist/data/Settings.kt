@@ -66,6 +66,19 @@ data class SettingsSnapshot(
     val foldersInList: Boolean = false,
     /** 0 off, 1 light, 2 strong (Android 12+ phones that support window blur). */
     val wallpaperBlur: Int = 0,
+    /** Round button: swipe down and double-tap targets (same format as [buttonTarget]). */
+    val buttonDownTarget: String? = null,
+    val buttonDoubleTarget: String? = null,
+    /** Cards (music, flashlight, headphones) go below favorites so favorites never move. */
+    val pinFavorites: Boolean = false,
+    /** "start", "center" or "end". */
+    val favoritesAlign: String = "start",
+    /** 0 = list; 4 or 5 = an icon grid with that many columns. */
+    val favoritesGrid: Int = 0,
+    val gridLabels: Boolean = true,
+    val searchPill: Boolean = false,
+    /** A small dot for unread notifications instead of preview text. */
+    val notifDots: Boolean = false,
 )
 
 class Settings(private val context: Context) {
@@ -102,6 +115,14 @@ class Settings(private val context: Context) {
         val shortcutsHidden = stringSetPreferencesKey("shortcuts_hidden")
         val foldersInList = booleanPreferencesKey("folders_in_list")
         val wallpaperBlur = intPreferencesKey("wallpaper_blur")
+        val buttonDownTarget = stringPreferencesKey("button_down_target")
+        val buttonDoubleTarget = stringPreferencesKey("button_double_target")
+        val pinFavorites = booleanPreferencesKey("pin_favorites")
+        val favoritesAlign = stringPreferencesKey("favorites_align")
+        val favoritesGrid = intPreferencesKey("favorites_grid")
+        val gridLabels = booleanPreferencesKey("grid_labels")
+        val searchPill = booleanPreferencesKey("search_pill")
+        val notifDots = booleanPreferencesKey("notif_dots")
     }
 
     private val booleanKeys = mapOf(
@@ -128,6 +149,10 @@ class Settings(private val context: Context) {
         "torch_reminder" to Keys.torchReminder,
         "replace_clock" to Keys.replaceClock,
         "folders_in_list" to Keys.foldersInList,
+        "pin_favorites" to Keys.pinFavorites,
+        "grid_labels" to Keys.gridLabels,
+        "search_pill" to Keys.searchPill,
+        "notif_dots" to Keys.notifDots,
     )
 
     val flow: Flow<SettingsSnapshot> = context.dataStore.data.map { p ->
@@ -165,6 +190,14 @@ class Settings(private val context: Context) {
             shortcutsHidden = p[Keys.shortcutsHidden].orEmpty(),
             foldersInList = p[Keys.foldersInList] ?: false,
             wallpaperBlur = (p[Keys.wallpaperBlur] ?: 0).coerceIn(0, 2),
+            buttonDownTarget = p[Keys.buttonDownTarget],
+            buttonDoubleTarget = p[Keys.buttonDoubleTarget],
+            pinFavorites = p[Keys.pinFavorites] ?: false,
+            favoritesAlign = (p[Keys.favoritesAlign] ?: "start").takeIf { it in setOf("start", "center", "end") } ?: "start",
+            favoritesGrid = (p[Keys.favoritesGrid] ?: 0).takeIf { it in setOf(0, 4, 5) } ?: 0,
+            gridLabels = p[Keys.gridLabels] ?: true,
+            searchPill = p[Keys.searchPill] ?: false,
+            notifDots = p[Keys.notifDots] ?: false,
         )
     }
 
@@ -213,6 +246,22 @@ class Settings(private val context: Context) {
         if (target == null) it.remove(Keys.buttonSwipeTarget) else it[Keys.buttonSwipeTarget] = target
     }
 
+    /** [slot]: 0 tap, 1 swipe up, 2 swipe down, 3 double-tap. */
+    suspend fun setButtonSlot(slot: Int, target: String?) = context.dataStore.edit {
+        val key = when (slot) {
+            0 -> Keys.buttonTarget
+            1 -> Keys.buttonSwipeTarget
+            2 -> Keys.buttonDownTarget
+            else -> Keys.buttonDoubleTarget
+        }
+        if (target == null) it.remove(key) else it[key] = target
+    }
+
+    suspend fun setFavoritesLayout(align: String, grid: Int) = context.dataStore.edit {
+        it[Keys.favoritesAlign] = align
+        it[Keys.favoritesGrid] = grid
+    }
+
     /** For backup/restore. */
     suspend fun export(): Map<String, Any> = context.dataStore.data.first().asMap()
         .mapKeys { it.key.name }
@@ -227,6 +276,10 @@ class Settings(private val context: Context) {
         (values["search_engine"] as? String)?.let { p[Keys.searchEngine] = it }
         (values["button_swipe_target"] as? String)?.let { p[Keys.buttonSwipeTarget] = it }
         (values["wallpaper_blur"] as? Number)?.let { p[Keys.wallpaperBlur] = it.toInt() }
+        (values["button_down_target"] as? String)?.let { p[Keys.buttonDownTarget] = it }
+        (values["button_double_target"] as? String)?.let { p[Keys.buttonDoubleTarget] = it }
+        (values["favorites_align"] as? String)?.let { p[Keys.favoritesAlign] = it }
+        (values["favorites_grid"] as? Number)?.let { p[Keys.favoritesGrid] = it.toInt() }
         (values["shortcuts_hidden"] as? org.json.JSONArray)?.let { arr -> p[Keys.shortcutsHidden] = (0 until arr.length()).map(arr::getString).toSet() }
         @Suppress("UNCHECKED_CAST")
         (values["shortcuts_hidden"] as? Collection<String>)?.let { p[Keys.shortcutsHidden] = it.toSet() }

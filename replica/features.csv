@@ -85,11 +85,11 @@ Sort app list by usage within each letter,app list,could,yes,yes,M4: Settings > 
 Quick Replies on/off setting,notifications,could,yes,yes,M4: Settings > Home screen > Quick replies
 Screen time shortcut in app options,home,could,yes,yes,"M4: opens Digital Wellbeing's page for the app (Android 10+, when the phone has it)"
 Allow home screen rotation setting,layout,could,yes,yes,M4: off keeps home upright; tablets and foldables always rotate
-"Provably private: open-source licence, privacy page, F-Droid metadata, no-tracker build check",core,should,no,no,F1 (replica/fixes.md): price themes 85 mentions / 5 sources; closed source and trackers 8 / 3
-"Home never freezes or goes blank on return (StrictMode, resume budget, 50x return test)",core,should,no,no,F2: bugs 22 / 4 sources; freezes 10 / 2
-"Favorites layout: alignment left/centre/right, icon grid, favorites count",home,should,no,no,F3: layout freedom 9 / 3 sources; finding apps by name 5 / 2
-Keep favorites in place (cards go below favorites or into the stack),home,could,no,no,F4: layout shifts 4 / 2 sources
-"Round button: double-tap, swipe down and long-press actions",home,could,no,no,F5: gestures 7 / 4 sources; 155 votes on Niagara's board
-Typo-tolerant search and optional search pill on home,search,could,no,no,F6: search 4 / 2 sources
-App list always opens at the top (except the 3-second return),app list,could,no,no,"F7: 1 review, read by hand"
-Unread dots instead of preview text (option),notifications,could,no,no,F8: 2 / 2 sources (thin)
+"Provably private: open-source licence, privacy page, F-Droid metadata, no-tracker build check",core,should,no,partial,"F1: PRIVACY.md and checkNoTrackers (runs before every build; 131 libraries, none trackers; verified it fails on a blocked library). Licence and F-Droid metadata wait on the licence choice"
+"Home never freezes or goes blank on return (StrictMode, resume budget, 50x return test)",core,should,no,yes,"F2: resume work (setup checks, wallpaper colours) moved off the main thread; StrictMode in debug; UI test returns to home 50 times"
+"Favorites layout: alignment left/centre/right, icon grid, favorites count",home,should,no,yes,"F3: list or grid (4 or 5 across, names optional); left, centre or right with icons kept in one column. No favorites count cap (not needed)"
+Keep favorites in place (cards go below favorites or into the stack),home,could,no,yes,F4: Settings > Home screen > Keep favorites in place
+"Round button: double-tap, swipe down and long-press actions",home,could,no,yes,"F5: tap, swipe up, swipe down and double-tap each open an app, folder, shortcut or Search / Screen off / Notification shade; long-press stays the picker"
+Typo-tolerant search and optional search pill on home,search,could,no,yes,"F6: one typo in 4-6 letters, two in 7+, swaps count once, ranked after real matches (unit tests); search pill (UI test)"
+App list always opens at the top (except the 3-second return),app list,could,no,yes,F7: leaving the list resets it; letter jumps and the 3-second return are unchanged
+Unread dots instead of preview text (option),notifications,could,no,yes,F8: Settings > Home screen > Unread dots; dots also on grid tiles

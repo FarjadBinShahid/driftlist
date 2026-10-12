@@ -1,5 +1,6 @@
 package dev.farjad.driftlist
 
+import android.os.StrictMode
 import dev.farjad.driftlist.system.HeadphoneWatcher
 import dev.farjad.driftlist.system.TorchWatcher
 import dev.farjad.driftlist.system.search.ContactSearch
@@ -57,6 +58,12 @@ class DriftlistApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        if (BuildConfig.DEBUG) {
+            // Debug builds flag disk and network work on the main thread, so a slow resume shows up
+            // in testing instead of as a frozen home screen on someone's phone.
+            StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder().detectDiskReads().detectDiskWrites().detectNetwork().penaltyLog().build())
+            StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().detectLeakedClosableObjects().detectActivityLeaks().penaltyLog().build())
+        }
         val c = AppContainer(this)
         container = c
         c.catalog.onSynced = c.icons::onCatalogSynced

@@ -1,5 +1,16 @@
 package dev.farjad.driftlist.ui.home
 
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import dev.farjad.driftlist.ui.components.AppIcon
+import dev.farjad.driftlist.ui.components.FavoriteTile
+import dev.farjad.driftlist.ui.components.FolderIcon
+import dev.farjad.driftlist.ui.components.SearchPill
+import dev.farjad.driftlist.ui.components.actionIconFor
 import dev.farjad.driftlist.ui.components.PopupEditorSheet
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -132,7 +143,8 @@ private sealed interface Overlay {
     data class WidgetPicker(val stackId: String?) : Overlay
     data class PopupEditor(val app: AppEntity) : Overlay
     data object Search : Overlay
-    data class ButtonTarget(val swipe: Boolean) : Overlay
+    /** [slot]: 0 tap, 1 swipe up, 2 swipe down, 3 double-tap. */
+    data class ButtonTarget(val slot: Int) : Overlay
     data object Recent : Overlay
     data object Agenda : Overlay
     data object MoveClock : Overlay
@@ -155,6 +167,9 @@ fun HomeScreen(
     val latestState by rememberUpdatedState(state)
 
     BackHandler(enabled = pane == Pane.AllApps && overlay == null) { pane = Pane.Favorites }
+    // F7: leaving the list resets it, so the next time it opens it starts at the top (a letter
+    // jump still lands on its letter, and the 3-second return from an app keeps your place).
+    LaunchedEffect(pane) { if (pane == Pane.Favorites) listState.scrollToItem(0) }
     LaunchedEffect(Unit) {
         vm.homePresses.collect { alreadyHome ->
             val s = latestState
@@ -216,6 +231,22 @@ fun HomeScreen(
         is dev.farjad.driftlist.domain.ButtonTarget.Folder -> state.favorites.filterIsInstance<HomeEntry.Folder>()
             .firstOrNull { it.folder.id == t.folderId }?.let { overlay = Overlay.Folder(it); true } ?: false
         is dev.farjad.driftlist.domain.ButtonTarget.Shortcut -> { vm.launchButtonShortcut(t, null); true }
+        is dev.farjad.driftlist.domain.ButtonTarget.Action -> {
+            when (t.kind) {
+                dev.farjad.driftlist.domain.ButtonTarget.Kind.Search -> overlay = Overlay.Search
+                dev.farjad.driftlist.domain.ButtonTarget.Kind.Shade -> SystemActions.expandNotificationShade(context)
+                dev.farjad.driftlist.domain.ButtonTarget.Kind.Lock ->
+                    if (QuickLockService.isEnabled(context)) {
+                        QuickLockService.lock()
+                    } else {
+                        overlay = Overlay.Permission(
+                            Explainers.quickLock(SystemActions.isSideloaded(context)),
+                            Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS),
+                        )
+                    }
+            }
+            true
+        }
     }
     val contactsPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) vm.setFlag("search_contacts", false)
@@ -255,6 +286,15 @@ fun HomeScreen(
 
     val notificationsFor = { app: AppEntity -> state.notifications[app.key].orEmpty() }
     val nowMs = System.currentTimeMillis()
+    // Centre/right alignment lines the icons up: every favorite's label is as wide as the longest.
+    val measurer = rememberTextMeasurer()
+    val favStyle = TypeTokens.favorite.onWallpaper(colors)
+    val density = LocalDensity.current
+    val favoriteLabelWidth: Dp? = if (state.settings.favoritesAlign == "start") null else remember(state.favorites, state.suggestions, favStyle) {
+        val labels = state.favorites.map { e -> if (e is HomeEntry.App) e.app.label else (e as HomeEntry.Folder).folder.title } + state.suggestions.map { it.label }
+        val widest = labels.maxOfOrNull { measurer.measure(it, favStyle, maxLines = 1).size.width } ?: 0
+        with(density) { widest.toDp() + SpaceTokens.s1 }.coerceAtMost(LABEL_WIDTH_MAX)
+    }
     val appRow: @Composable (AppEntity, AppRowVariant) -> Unit = { app, variant ->
         val notes = notificationsFor(app)
         val latest = notes.firstOrNull()
@@ -270,7 +310,21 @@ fun HomeScreen(
             previewAge = latest?.let { RelativeTime.short(nowMs - it.postedAt) },
             spokenLabel = if (app.userSerial in state.otherProfiles) remember(app.id) { vm.profileLabel(app) } else app.label,
             paused = app.userSerial in state.pausedProfiles,
+            align = if (variant == AppRowVariant.Favorite) state.settings.favoritesAlign else "start",
+            labelWidth = if (variant == AppRowVariant.Favorite) favoriteLabelWidth else null,
+            dotsOnly = state.settings.notifDots,
         )
+    }
+    val appTile: @Composable (AppEntity) -> Unit = { app ->
+        val notes = notificationsFor(app)
+        FavoriteTile(
+            label = app.label,
+            showLabel = state.settings.gridLabels,
+            unread = notes.size,
+            onClick = { vm.launch(app, null) },
+            onLongClick = { overlay = Overlay.Options(app) },
+            onDetails = { overlay = Overlay.Popup(app, null) },
+        ) { AppIcon(app.id, vm.icons, SizeTokens.iconFavorite) }
     }
     val sideloaded = remember { SystemActions.isSideloaded(context) }
     val listScope = rememberCoroutineScope()
@@ -346,9 +400,13 @@ fun HomeScreen(
                         onDateClick = { if (agendaOn) overlay = Overlay.Agenda else SystemActions.openCalendar(context) },
                         onWidgetPage = { widgetPage = it },
                         onSuggestionRow = { app -> appRow(app, AppRowVariant.Favorite) },
-                        onButtonClick = { if (!runTarget(state.settings.buttonTarget)) overlay = Overlay.ButtonTarget(swipe = false) },
-                        onButtonLongClick = { overlay = Overlay.ButtonTarget(swipe = false) },
-                        onButtonSwipe = { if (!runTarget(state.settings.buttonSwipeTarget)) overlay = Overlay.ButtonTarget(swipe = true) },
+                        onButtonClick = { if (!runTarget(state.settings.buttonTarget)) overlay = Overlay.ButtonTarget(0) },
+                        onButtonLongClick = { overlay = Overlay.ButtonTarget(0) },
+                        onButtonSwipe = { if (!runTarget(state.settings.buttonSwipeTarget)) overlay = Overlay.ButtonTarget(1) },
+                        onButtonDown = { if (!runTarget(state.settings.buttonDownTarget)) overlay = Overlay.ButtonTarget(2) },
+                        onButtonDouble = { if (!runTarget(state.settings.buttonDoubleTarget)) overlay = Overlay.ButtonTarget(3) },
+                        appTile = appTile,
+                        favoriteLabelWidth = favoriteLabelWidth,
                         onSearch = { if (state.settings.swipeUpSearch) overlay = Overlay.Search },
                         onAskDefault = askToBeDefault,
                         onAskNotifications = {
@@ -577,11 +635,11 @@ fun HomeScreen(
             apps = state.allApps.filterNot { it.hidden },
             folders = state.favorites.filterIsInstance<HomeEntry.Folder>().map { it.folder.id to it.folder.title },
             icons = vm.icons,
-            onPick = { target -> close(); vm.setButtonTarget(target, swipe = o.swipe) },
+            onPick = { target -> close(); vm.setButtonTarget(target, slot = o.slot) },
             onClose = close,
             shortcutsFor = vm::shortcutsFor,
-            swipe = o.swipe,
-            onSwitchMode = { swipe -> overlay = Overlay.ButtonTarget(swipe) },
+            slot = o.slot,
+            onSwitchSlot = { slot -> overlay = Overlay.ButtonTarget(slot) },
         )
         Overlay.Recent -> RecentlyInstalledSheet(
             apps = state.recentlyInstalled,
@@ -629,6 +687,10 @@ private fun FavoritesPane(
     onButtonClick: () -> Unit,
     onButtonLongClick: () -> Unit,
     onButtonSwipe: () -> Unit,
+    onButtonDown: () -> Unit,
+    onButtonDouble: () -> Unit,
+    appTile: @Composable (AppEntity) -> Unit,
+    favoriteLabelWidth: Dp?,
     onSearch: () -> Unit,
     onAskDefault: () -> Unit,
     onAskNotifications: () -> Unit,
@@ -674,24 +736,9 @@ private fun FavoritesPane(
         val endPad = if (state.settings.leftHanded) SpaceTokens.s5 else 0.dp
         val showClock = !(state.settings.replaceClock && state.headerWidgets.isNotEmpty())
 
-        val header: @Composable ColumnScope.() -> Unit = {
-            if (showClock) {
-                ClockHeader(
-                    onClockClick = { SystemActions.openClock(context) },
-                    onDateClick = onDateClick,
-                    onLongClick = onHeaderLongClick,
-                    upcoming = state.agenda,
-                    dateOpensAgenda = state.settings.calendarEvents && state.calendarAccess,
-                )
-            }
-            if (state.headerWidgets.isNotEmpty()) {
-                if (showClock) Spacer(Modifier.height(SpaceTokens.s4))
-                WidgetStack(state.headerWidgets, vm.widgetHost, Modifier.padding(end = SpaceTokens.s3), onPage = onWidgetPage)
-                if (!showClock) {
-                    // The clock's long-press is gone; keep a way into the header options.
-                    TextButton(onClick = onHeaderLongClick) { Text("Header options") }
-                }
-            }
+        // Music, flashlight and headphone cards. Above favorites by default; below them when the
+        // user pins favorites in place (F4), so nothing pushes favorites around.
+        val cards: @Composable () -> Unit = {
             if (state.torchOn) {
                 Spacer(Modifier.height(SpaceTokens.s4))
                 TorchRow(onTurnOff = vm::torchOff, modifier = Modifier.padding(end = SpaceTokens.s3))
@@ -712,6 +759,29 @@ private fun FavoritesPane(
                 Spacer(Modifier.height(SpaceTokens.s4))
                 MusicAppsRow(state.musicApps, vm.icons, onLaunch = { vm.launch(it, null) })
             }
+        }
+        val pinnedCards = state.settings.pinFavorites &&
+            (state.torchOn || (state.settings.mediaCard && state.media != null) || state.musicApps.isNotEmpty())
+
+        val header: @Composable ColumnScope.() -> Unit = {
+            if (showClock) {
+                ClockHeader(
+                    onClockClick = { SystemActions.openClock(context) },
+                    onDateClick = onDateClick,
+                    onLongClick = onHeaderLongClick,
+                    upcoming = state.agenda,
+                    dateOpensAgenda = state.settings.calendarEvents && state.calendarAccess,
+                )
+            }
+            if (state.headerWidgets.isNotEmpty()) {
+                if (showClock) Spacer(Modifier.height(SpaceTokens.s4))
+                WidgetStack(state.headerWidgets, vm.widgetHost, Modifier.padding(end = SpaceTokens.s3), onPage = onWidgetPage)
+                if (!showClock) {
+                    // The clock's long-press is gone; keep a way into the header options.
+                    TextButton(onClick = onHeaderLongClick) { Text("Header options") }
+                }
+            }
+            if (!state.settings.pinFavorites) cards()
             if (state.loaded && !state.setup.isDefaultLauncher) {
                 Spacer(Modifier.height(SpaceTokens.s5))
                 SetupCard(
@@ -735,6 +805,38 @@ private fun FavoritesPane(
         }
 
         val favorites: @Composable (Modifier, Boolean) -> Unit = { modifier, bottom ->
+            if (state.settings.favoritesGrid > 0) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(state.settings.favoritesGrid),
+                    modifier = modifier.fillMaxWidth().padding(end = SpaceTokens.s3),
+                    verticalArrangement = if (bottom) Arrangement.Bottom else Arrangement.Top,
+                    contentPadding = PaddingValues(bottom = SpaceTokens.s7),
+                ) {
+                    items(state.favorites, key = { it.itemId }) { entry ->
+                        when (entry) {
+                            is HomeEntry.App -> appTile(entry.app)
+                            is HomeEntry.Folder -> FavoriteTile(
+                                label = entry.folder.title,
+                                showLabel = state.settings.gridLabels,
+                                unread = entry.apps.sumOf { state.notifications[it.key].orEmpty().size },
+                                onClick = { onFolderClick(entry) },
+                                onLongClick = { onFolderLongClick(entry) },
+                            ) { FolderIcon(entry.apps, vm.icons, SizeTokens.iconFavorite) }
+                        }
+                    }
+                    if (state.suggestions.isNotEmpty()) {
+                        item(key = "suggestions:header", span = { GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                "Suggested",
+                                style = TypeTokens.caption.onWallpaper(colors, colors.textMuted),
+                                modifier = Modifier.padding(top = SpaceTokens.s5, bottom = SpaceTokens.s2).semantics { heading() },
+                            )
+                        }
+                        items(state.suggestions, key = { "s:" + it.id }) { app -> appTile(app) }
+                    }
+                    if (pinnedCards) item(key = "cards", span = { GridItemSpan(maxLineSpan) }) { Column { cards() } }
+                }
+            } else {
             LazyColumn(
                 modifier = modifier.fillMaxWidth(),
                 verticalArrangement = if (bottom) Arrangement.Bottom else Arrangement.Top,
@@ -761,6 +863,8 @@ private fun FavoritesPane(
                                 preview = latest?.preview,
                                 onClick = { onFolderClick(entry) },
                                 onLongClick = { onFolderLongClick(entry) },
+                                align = state.settings.favoritesAlign,
+                                labelWidth = favoriteLabelWidth,
                             )
                         }
                     }
@@ -775,6 +879,8 @@ private fun FavoritesPane(
                     }
                     items(state.suggestions, key = { "s:" + it.id }) { app -> onSuggestionRow(app) }
                 }
+                if (pinnedCards) item(key = "cards") { Column { cards() } }
+            }
             }
         }
 
@@ -801,6 +907,9 @@ private fun FavoritesPane(
             }
         }
 
+        if (state.settings.searchPill) {
+            SearchPill(onClick = onSearch, modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = SpaceTokens.s5))
+        }
         if (state.settings.buttonEnabled) {
             val tap = ButtonTarget.parse(state.settings.buttonTarget)
             val swipeTarget = ButtonTarget.parse(state.settings.buttonSwipeTarget)
@@ -819,6 +928,12 @@ private fun FavoritesPane(
                 onLongClick = onButtonLongClick,
                 swipeLabel = targetLabel(swipeTarget, state),
                 onSwipeUp = if (swipeTarget != null) onButtonSwipe else null,
+                actionIcon = (tap as? ButtonTarget.Action)?.let { actionIconFor(it.kind) },
+                actionLabel = (tap as? ButtonTarget.Action)?.kind?.label,
+                downLabel = targetLabel(ButtonTarget.parse(state.settings.buttonDownTarget), state),
+                onSwipeDown = if (state.settings.buttonDownTarget != null) onButtonDown else null,
+                doubleLabel = targetLabel(ButtonTarget.parse(state.settings.buttonDoubleTarget), state),
+                onDoubleTap = if (state.settings.buttonDoubleTarget != null) onButtonDouble else null,
                 modifier = Modifier
                     .align(if (state.settings.leftHanded) Alignment.BottomStart else Alignment.BottomEnd)
                     .padding(SpaceTokens.s5),
@@ -833,9 +948,11 @@ private fun targetLabel(target: ButtonTarget?, state: HomeUiState): String? = wh
     is ButtonTarget.App -> state.allApps.firstOrNull { it.id == target.appId }?.label
     is ButtonTarget.Folder -> state.favorites.filterIsInstance<HomeEntry.Folder>().firstOrNull { it.folder.id == target.folderId }?.folder?.title
     is ButtonTarget.Shortcut -> target.label
+    is ButtonTarget.Action -> target.kind.label
 }
 
 private val WIDE_LAYOUT_MIN = 600.dp
+private val LABEL_WIDTH_MAX = 220.dp
 private const val WIDE_TOP_MAX = 0.12f
 
 @Composable

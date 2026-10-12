@@ -1,5 +1,10 @@
 package dev.farjad.driftlist.ui.components
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.outlined.FlashlightOn
 import androidx.compose.ui.semantics.heading
 import dev.farjad.driftlist.ui.theme.onWallpaper
@@ -189,15 +194,23 @@ fun ActionButton(
     shortcutLabel: String? = null,
     swipeLabel: String? = null,
     onSwipeUp: (() -> Unit)? = null,
+    actionIcon: ImageVector? = null,
+    actionLabel: String? = null,
+    downLabel: String? = null,
+    onSwipeDown: (() -> Unit)? = null,
+    doubleLabel: String? = null,
+    onDoubleTap: (() -> Unit)? = null,
 ) {
     val haptics = LocalHapticFeedback.current
     val label = when {
+        actionLabel != null -> actionLabel
         shortcutLabel != null -> "Open $shortcutLabel"
         app != null -> "Open ${app.label}"
         folderTitle != null -> "Open $folderTitle"
         else -> "Choose what this button opens"
     }
     val swipe by rememberUpdatedState(onSwipeUp)
+    val down by rememberUpdatedState(onSwipeDown)
     val swipePx = with(LocalDensity.current) { SizeTokens.actionButton.toPx() * 0.6f }
     Box(
         modifier = modifier
@@ -209,26 +222,33 @@ fun ActionButton(
                 var dy = 0f
                 detectVerticalDragGestures(
                     onDragStart = { dy = 0f },
-                    onDragEnd = { if (dy < -swipePx) swipe?.invoke() },
+                    onDragEnd = {
+                        if (dy < -swipePx) swipe?.invoke()
+                        if (dy > swipePx) down?.invoke()
+                    },
                 ) { change, amount ->
                     dy += amount
                     change.consume()
                 }
             }
             .semantics {
-                if (onSwipeUp != null && swipeLabel != null) {
-                    customActions = listOf(CustomAccessibilityAction("Swipe up: $swipeLabel") { onSwipeUp(); true })
-                }
+                customActions = listOfNotNull(
+                    if (onSwipeUp != null && swipeLabel != null) CustomAccessibilityAction("Swipe up: $swipeLabel") { onSwipeUp(); true } else null,
+                    if (onSwipeDown != null && downLabel != null) CustomAccessibilityAction("Swipe down: $downLabel") { onSwipeDown(); true } else null,
+                    if (onDoubleTap != null && doubleLabel != null) CustomAccessibilityAction("Double-tap: $doubleLabel") { onDoubleTap(); true } else null,
+                )
             }
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onLongClick() },
                 onLongClickLabel = "Change what it opens",
+                onDoubleClick = onDoubleTap,
             )
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
         when {
+            actionIcon != null -> Icon(actionIcon, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
             app != null -> AppIcon(app.id, icons, SizeTokens.iconList)
             folderTitle != null -> Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
             else -> Icon(Icons.Outlined.Add, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -262,23 +282,31 @@ fun ButtonTargetSheet(
     onPick: (String?) -> Unit,
     onClose: () -> Unit,
     shortcutsFor: (AppEntity) -> List<ShortcutInfoItem> = { emptyList() },
-    swipe: Boolean = false,
-    onSwitchMode: ((Boolean) -> Unit)? = null,
+    slot: Int = 0,
+    onSwitchSlot: ((Int) -> Unit)? = null,
 ) {
     var expanded by remember { mutableStateOf<String?>(null) }
     DriftSheet(onClose) {
         Column(Modifier.fillMaxHeight(0.9f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                SheetTitle(if (swipe) "Swipe up opens" else "Tap opens", Modifier.weight(1f))
-                TextButton(onClick = { onPick(null) }, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text(if (swipe) "Nothing" else "Turn off") }
+                SheetTitle(BUTTON_SLOTS[slot] + " opens", Modifier.weight(1f))
+                TextButton(onClick = { onPick(null) }, modifier = Modifier.padding(end = SpaceTokens.s4)) { Text(if (slot == 0) "Turn off" else "Nothing") }
             }
-            if (onSwitchMode != null) {
-                Row(Modifier.padding(horizontal = SpaceTokens.s7), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3)) {
-                    FilterChip(selected = !swipe, onClick = { onSwitchMode(false) }, label = { Text("Tap") })
-                    FilterChip(selected = swipe, onClick = { onSwitchMode(true) }, label = { Text("Swipe up") })
+            if (onSwitchSlot != null) {
+                Row(
+                    Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = SpaceTokens.s7),
+                    horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3),
+                ) {
+                    BUTTON_SLOTS.forEachIndexed { i, name ->
+                        FilterChip(selected = slot == i, onClick = { onSwitchSlot(i) }, label = { Text(name) })
+                    }
                 }
             }
             LazyColumn(Modifier.weight(1f)) {
+                items(ButtonTarget.Kind.entries, key = { "k:" + it.name }) { kind ->
+                    OptionRow(kind.label, { onPick(ButtonTarget.Action(kind).encode()) }, icon = actionIconFor(kind), supporting = "Built in")
+                }
+                item { HorizontalDivider(Modifier.padding(vertical = SpaceTokens.s2)) }
                 if (folders.isNotEmpty()) {
                     items(folders, key = { "f:" + it.first }) { (id, title) ->
                         OptionRow(title, { onPick("folder:$id") }, icon = Icons.Outlined.Folder, supporting = "Folder")
@@ -380,6 +408,91 @@ fun MusicAppsRow(apps: List<AppEntity>, icons: IconCache, onLaunch: (AppEntity) 
                     contentAlignment = Alignment.Center,
                 ) { AppIcon(app.id, icons, SizeTokens.iconFavorite) }
             }
+        }
+    }
+}
+
+/** The round button's four gestures, in the order the sheet shows them. */
+val BUTTON_SLOTS = listOf("Tap", "Swipe up", "Swipe down", "Double-tap")
+
+fun actionIconFor(kind: ButtonTarget.Kind): ImageVector = when (kind) {
+    ButtonTarget.Kind.Search -> Icons.Outlined.Search
+    ButtonTarget.Kind.Lock -> Icons.Outlined.Lock
+    ButtonTarget.Kind.Shade -> Icons.Outlined.Notifications
+}
+
+/** F6: a search pill on home that opens straight into typing. */
+@Composable
+fun SearchPill(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+        shape = RoundedCornerShape(RadiusTokens.pill),
+        modifier = modifier
+            .heightIn(min = SizeTokens.touchMin)
+            .clip(RoundedCornerShape(RadiusTokens.pill))
+            .clickable(onClickLabel = "Search apps", onClick = onClick),
+    ) {
+        Row(
+            Modifier.padding(horizontal = SpaceTokens.s6, vertical = SpaceTokens.s3),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s3),
+        ) {
+            Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("Search", style = TypeTokens.body.style(MaterialTheme.colorScheme.onSurfaceVariant))
+        }
+    }
+}
+
+/** F3: one favorite in the icon grid. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun FavoriteTile(
+    label: String,
+    showLabel: Boolean,
+    unread: Int,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDetails: (() -> Unit)? = null,
+    icon: @Composable () -> Unit,
+) {
+    val colors = LocalHomeColors.current
+    val haptics = LocalHapticFeedback.current
+    Column(
+        modifier
+            .clip(RoundedCornerShape(RadiusTokens.md))
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { haptics.performHapticFeedback(HapticFeedbackType.LongPress); onLongClick() },
+                onLongClickLabel = "Options",
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (unread > 0) "$label, $unread notifications" else label
+                if (onDetails != null) customActions = listOf(CustomAccessibilityAction("Notifications and shortcuts") { onDetails(); true })
+            }
+            .padding(vertical = SpaceTokens.s3),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box {
+            icon()
+            if (unread > 0) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .size(SizeTokens.eventDot + SpaceTokens.s1)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+            }
+        }
+        if (showLabel) {
+            Text(
+                label,
+                style = TypeTokens.caption.onWallpaper(colors),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(top = SpaceTokens.s2, start = SpaceTokens.s1, end = SpaceTokens.s1),
+            )
         }
     }
 }

@@ -25,6 +25,20 @@ class AppSearchTest {
     }
 
     @Test
+    fun forgivesSmallTyposAfterRealMatches() {
+        // One slip in a 4-6 letter query, two in a longer one; always ranked after real matches.
+        assertEquals(5, AppSearch.score("spotfy", "Spotify"))
+        assertEquals(5, AppSearch.score("calender", "Calendar"))
+        assertEquals(5, AppSearch.score("whtasapp", "WhatsApp"))
+        assertEquals(5, AppSearch.score("mpas", "Google Maps"))
+        assertEquals(5, AppSearch.score("telgeram", "Telegram"))
+        assertNull(AppSearch.score("map", "Mail"))      // too short to guess
+        assertNull(AppSearch.score("spotfiy", "Slack"))
+        val apps = listOf(app("Calendar"), app("Calculator"))
+        assertEquals(listOf("Calendar"), AppSearch.rank("calender", apps).map { it.label })
+    }
+
+    @Test
     fun ignoresAccentsAndCase() {
         assertEquals(0, AppSearch.score("CAFE", "Café"))
     }

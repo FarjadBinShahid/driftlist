@@ -107,3 +107,30 @@ dependencies {
         implementation(libs.kotlinx.serialization.json)
     }
 }
+
+// --- F1: no trackers, ever -------------------------------------------------------------------
+// Driftlist's promise is "nothing leaves your phone". This fails every build if a known analytics,
+// advertising, crash-reporting or attribution library ever lands on the app's runtime classpath,
+// directly or through another dependency.
+val trackerPrefixes = listOf(
+    "com.google.firebase", "com.google.android.gms:play-services-analytics", "com.google.android.gms:play-services-ads",
+    "com.google.android.gms:play-services-measurement", "com.google.android.gms:play-services-appset",
+    "com.crashlytics", "io.fabric", "io.sentry", "com.bugsnag", "com.newrelic", "com.instabug",
+    "com.facebook.android", "com.facebook.sdk", "com.appsflyer", "com.adjust.sdk", "io.branch",
+    "com.mixpanel", "com.amplitude", "com.segment", "com.onesignal", "com.flurry", "com.microsoft.appcenter",
+    "com.yandex.android:mobmetricalib", "com.applovin", "com.unity3d.ads", "com.ironsource", "com.mopub",
+)
+val checkNoTrackers = tasks.register("checkNoTrackers") {
+    group = "verification"
+    description = "Fails if an analytics, ads or tracking library is on the release runtime classpath."
+    val components = configurations.named("releaseRuntimeClasspath").map { cfg ->
+        cfg.incoming.resolutionResult.allComponents.map { it.moduleVersion.toString() }
+    }
+    doLast {
+        val all = components.get()
+        val found = all.filter { id -> trackerPrefixes.any { id.startsWith(it) } }
+        if (found.isNotEmpty()) throw GradleException("Tracker libraries on the classpath: $found")
+        logger.lifecycle("checkNoTrackers: ${all.size} libraries checked, none are trackers")
+    }
+}
+tasks.named("preBuild") { dependsOn(checkNoTrackers) }

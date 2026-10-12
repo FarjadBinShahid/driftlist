@@ -149,6 +149,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     fun setSearchIncludesHidden(v: Boolean) = viewModelScope.launch { c.settings.setSearchIncludesHidden(v) }
     fun setUsageBreaker(v: Boolean) = viewModelScope.launch { c.settings.setUsageBreaker(v) }
     fun setFavoritesAtBottom(v: Boolean) = viewModelScope.launch { c.settings.setFavoritesAtBottom(v) }
+    fun setFavoritesLayout(align: String, grid: Int) = viewModelScope.launch { c.settings.setFavoritesLayout(align, grid) }
     fun setSearchEngine(engine: SearchEngine) = viewModelScope.launch { c.settings.setSearchEngine(engine) }
     fun hasContactsAccess() = c.contacts.hasPermission()
     fun setFlag(name: String, v: Boolean) = viewModelScope.launch { c.settings.setFlag(name, v) }
@@ -465,6 +466,39 @@ private fun HomePage(vm: SettingsViewModel, state: SettingsUiState, padding: Pad
                 s.favoritesAtBottom,
             ) { vm.setFlag("favorites_at_bottom", it) }
         }
+        item { SectionHeader("Favorites") }
+        item {
+            Text("Show them as", style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurfaceVariant), modifier = Modifier.padding(start = SpaceTokens.s7, top = SpaceTokens.s3))
+        }
+        item { ChoiceRow("A list", s.favoritesGrid == 0) { vm.setFavoritesLayout(s.favoritesAlign, 0) } }
+        item { ChoiceRow("A grid, 4 across", s.favoritesGrid == 4) { vm.setFavoritesLayout(s.favoritesAlign, 4) } }
+        item { ChoiceRow("A grid, 5 across", s.favoritesGrid == 5) { vm.setFavoritesLayout(s.favoritesAlign, 5) } }
+        if (s.favoritesGrid > 0) {
+            item { ToggleRow("Names under icons", null, s.gridLabels) { vm.setFlag("grid_labels", it) } }
+        } else {
+            item {
+                Text("Line them up", style = TypeTokens.label.style(MaterialTheme.colorScheme.onSurfaceVariant), modifier = Modifier.padding(start = SpaceTokens.s7, top = SpaceTokens.s3))
+            }
+            item { ChoiceRow("Left", s.favoritesAlign == "start") { vm.setFavoritesLayout("start", s.favoritesGrid) } }
+            item { ChoiceRow("Centre", s.favoritesAlign == "center") { vm.setFavoritesLayout("center", s.favoritesGrid) } }
+            item { ChoiceRow("Right", s.favoritesAlign == "end") { vm.setFavoritesLayout("end", s.favoritesGrid) } }
+        }
+        item {
+            ToggleRow("Keep favorites in place", "Music, flashlight and headphone cards go below your favorites instead of pushing them down", s.pinFavorites) {
+                vm.setFlag("pin_favorites", it)
+            }
+        }
+        item {
+            ToggleRow("Search pill", "A search button at the bottom of home that opens straight into typing", s.searchPill) {
+                vm.setFlag("search_pill", it)
+            }
+        }
+        item {
+            ToggleRow("Unread dots", "A small dot for new notifications instead of the message preview", s.notifDots) {
+                vm.setFlag("notif_dots", it)
+            }
+        }
+        item { SectionHeader("More") }
         item {
             ToggleRow("Suggest apps", "Your most-opened apps that aren't favorites, listed under them", s.suggestApps) {
                 vm.setFlag("suggest_apps", it)
