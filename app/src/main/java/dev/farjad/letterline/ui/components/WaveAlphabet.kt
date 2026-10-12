@@ -1,6 +1,5 @@
 package dev.farjad.letterline.ui.components
 
-import android.view.HapticFeedbackConstants
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -44,6 +43,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import dev.farjad.letterline.domain.Wave
+import dev.farjad.letterline.system.Haptics
 import dev.farjad.letterline.ui.theme.ElevationTokens
 import dev.farjad.letterline.ui.theme.LocalHomeColors
 import dev.farjad.letterline.ui.theme.MotionTokens
@@ -78,6 +78,7 @@ fun WaveAlphabet(
 ) {
     val colors = LocalHomeColors.current
     val view = LocalView.current
+    val haptic = remember(view) { Haptics(view.context) }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val maxOffsetPx = with(density) { WaveTokens.maxOffset.toPx() }
@@ -150,7 +151,7 @@ fun WaveAlphabet(
                         val entry = entries[i]
                         if (entry != current) {
                             current = entry
-                            if (haptics) view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            if (haptics) haptic.tick()
                             when (entry) {
                                 STAR -> latestFavorites()
                                 CIRCLE -> Unit // settings only on release, so sliding past it is harmless
