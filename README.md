@@ -39,4 +39,4 @@ Kotlin, Jetpack Compose (Material 3), Room, coroutines/Flow. On-device only: no 
 
 Letterline is released under the [MIT License](LICENSE).
 
-The bundled fonts (Manrope, Outfit, Space Grotesk, Comfortaa, Lora, Playfair Display, Fraunces, DM Serif Display, JetBrains Mono, Bebas Neue, Caveat) are not covered by the MIT License. They are unmodified files from [google/fonts](https://github.com/google/fonts) under the SIL Open Font License 1.1; each licence is in `app/src/main/assets/licenses/fonts/` and shown in Settings > About > Font licences.
+The bundled fonts (Manrope, Outfit, Space Grotesk, Comfortaa, Nunito, Nunito Sans, Lora, Playfair Display, Fraunces, DM Serif Display, JetBrains Mono, Bebas Neue, Caveat) are not covered by the MIT License. They are unmodified files from [google/fonts](https://github.com/google/fonts) under the SIL Open Font License 1.1; each licence is in `app/src/main/assets/licenses/fonts/` and shown in Settings > About > Font licences.

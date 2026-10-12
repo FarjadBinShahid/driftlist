@@ -233,6 +233,8 @@ private val bundledRes = mapOf(
     "font:outfit" to R.font.outfit,
     "font:space_grotesk" to R.font.space_grotesk,
     "font:comfortaa" to R.font.comfortaa,
+    "font:nunito" to R.font.nunito,
+    "font:nunito_sans" to R.font.nunito_sans,
     "font:lora" to R.font.lora,
     "font:playfair_display" to R.font.playfair_display,
     "font:fraunces" to R.font.fraunces,

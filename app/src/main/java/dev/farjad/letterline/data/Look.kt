@@ -113,6 +113,8 @@ object Fonts {
         Bundled("font:outfit", "Outfit", "outfit", variable = true),
         Bundled("font:space_grotesk", "Space Grotesk", "spacegrotesk", variable = true),
         Bundled("font:comfortaa", "Comfortaa", "comfortaa", variable = true),
+        Bundled("font:nunito", "Nunito", "nunito", variable = true),
+        Bundled("font:nunito_sans", "Nunito Sans", "nunitosans", variable = true),
         Bundled("font:lora", "Lora", "lora", variable = true),
         Bundled("font:playfair_display", "Playfair Display", "playfairdisplay", variable = true),
         Bundled("font:fraunces", "Fraunces", "fraunces", variable = true),
