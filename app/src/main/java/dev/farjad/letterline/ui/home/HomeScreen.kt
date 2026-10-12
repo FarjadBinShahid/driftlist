@@ -380,6 +380,14 @@ fun HomeScreen(
                     }
                 },
                 onFavorites = { pane = Pane.Favorites },
+                onEnd = {
+                    pane = Pane.AllApps
+                    listScope.launch {
+                        withFrameNanos { }
+                        val count = listState.layoutInfo.totalItemsCount
+                        if (count > 0) listState.scrollToItem(count - 1)
+                    }
+                },
                 onSettings = onOpenSettings,
                 leftHanded = state.settings.leftHanded,
                 haptics = state.settings.haptics,

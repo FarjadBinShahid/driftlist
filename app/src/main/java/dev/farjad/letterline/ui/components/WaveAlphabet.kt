@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,10 +55,11 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 private const val STAR = "☆" // favorites
-private const val CIRCLE = "○" // settings
+private const val CIRCLE = "○" // the end of the list, where the settings row is
 
 /**
- * The edge alphabet: the favorites star, the letters that have apps, and a settings circle,
+ * The edge alphabet: the favorites star, the letters that have apps, and a circle for the end of
+ * the list (its settings row),
  * stacked in the lower part of the screen. Sliding a finger along it pushes the letters out
  * sideways in a V around the finger, ticks a haptic per letter and reports the letter so the
  * list can jump there.
@@ -70,6 +70,7 @@ fun WaveAlphabet(
     enabledLetters: Set<String>,
     onLetter: (String) -> Unit,
     onFavorites: () -> Unit,
+    onEnd: () -> Unit,
     onSettings: () -> Unit,
     modifier: Modifier = Modifier,
     leftHanded: Boolean = false,
@@ -89,6 +90,7 @@ fun WaveAlphabet(
     val entries = listOf(STAR) + shown + CIRCLE
     val latestLetter by rememberUpdatedState(onLetter)
     val latestFavorites by rememberUpdatedState(onFavorites)
+    val latestEnd by rememberUpdatedState(onEnd)
     val latestSettings by rememberUpdatedState(onSettings)
     val latestDoubleTap by rememberUpdatedState(onDoubleTap)
     val direction = if (leftHanded) 1f else -1f
@@ -137,13 +139,14 @@ fun WaveAlphabet(
                 }
             },
     ) {
-        // The touch band; system back gestures are excluded only here.
+        // The touch band. It deliberately does not claim the screen edge from the system: a swipe
+        // that starts right at the edge is Back, as everywhere else on the phone, and touches that
+        // start a little further in reach the letters.
         Box(
             Modifier
                 .offset { IntOffset(0, bandTop.roundToInt()) }
                 .width(SizeTokens.alphabetTouchWidth)
                 .size(SizeTokens.alphabetTouchWidth, with(density) { bandHeight.toDp() })
-                .systemGestureExclusion()
                 .pointerInput(entries) {
                     fun pick(localY: Float) {
                         fingerY = localY
@@ -154,7 +157,8 @@ fun WaveAlphabet(
                             if (haptics) haptic.tick()
                             when (entry) {
                                 STAR -> latestFavorites()
-                                CIRCLE -> Unit // settings only on release, so sliding past it is harmless
+                                // Shows the settings row at the end of the list; never opens settings by itself.
+                                CIRCLE -> latestEnd()
                                 else -> {
                                     a11yIndex = shown.indexOf(entry).coerceAtLeast(0)
                                     latestLetter(entry)
@@ -187,7 +191,6 @@ fun WaveAlphabet(
                                 lastTapAt = upAt
                             }
                         }
-                        if (current == CIRCLE) latestSettings()
                         current = null
                         scope.launch {
                             intensity.animateTo(0f, spring(MotionTokens.springWaveDamping, MotionTokens.springWaveStiffness))
