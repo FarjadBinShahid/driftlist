@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -292,7 +293,8 @@ internal fun NotificationCard(
                         maxLines = 4,
                     )
                 } else if ((canReply && item.replyAction != null) || item.buttonActions.isNotEmpty()) {
-                    Row(Modifier.padding(top = SpaceTokens.s2), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s2)) {
+                    // Wraps instead of cutting a third button short on narrow phones ("Mu..." for Mute).
+                    FlowRow(Modifier.padding(top = SpaceTokens.s2), horizontalArrangement = Arrangement.spacedBy(SpaceTokens.s2)) {
                         if (canReply && item.replyAction != null) {
                             TextButton(onClick = { replying = true; status = null }) { Text("Reply") }
                         }
