@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="1024" height="1024">
+  <title>Letterline</title>
+  <rect width="108" height="108" fill="#2F6A4F"/>
+  <g fill="#F4F1E8">
+    <rect x="32" y="41" width="32" height="6" rx="3"/>
+    <rect x="32" y="51" width="24" height="6" rx="3"/>
+    <rect x="32" y="61" width="16" height="6" rx="3"/>
+    <circle cx="75" cy="36" r="2.6"/>
+    <circle cx="72" cy="45" r="2.6"/>
+    <circle cx="72" cy="63" r="2.6"/>
+    <circle cx="75" cy="72" r="2.6"/>
+  </g>
+  <circle cx="65" cy="54" r="4.4" fill="#B9E3C9"/>
+</svg>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Driftlist</string>
-    <string name="quick_lock_description">Lets Driftlist turn the screen off when you double-tap the alphabet. It does not read anything on your screen or what you type.</string>
+    <string name="app_name">Letterline</string>
+    <string name="quick_lock_description">Lets Letterline turn the screen off when you double-tap the alphabet. It does not read anything on your screen or what you type.</string>
 </resources>

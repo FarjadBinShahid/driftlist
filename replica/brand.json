@@ -1,0 +1,8 @@
+{
+  "name": "Letterline",
+  "previous_name": "Driftlist",
+  "avoid": ["Niagara", "Mellowdrop", "bitpit", "Niagara Launcher", "Niagara Pro"],
+  "domains": ["niagaralauncher.com", "niagaralauncher.app", "help.niagaralauncher.app", "niagaralauncher.featurebase.app"],
+  "colors": ["#7FB9E9", "#109DFF", "#0B1957", "#9FCEFB", "#3B5BCC", "#9DB0FF"],
+  "palette": {"accent_light": "#2F6A4F", "accent_dark": "#8FD1AD", "icon_background": "#2F6A4F", "icon_mark": "#F4F1E8", "icon_highlight": "#B9E3C9"}
+}

@@ -13,7 +13,7 @@
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
 
-    <!-- Setting Driftlist's own wallpapers (a normal permission, granted at install). -->
+    <!-- Setting Letterline's own wallpapers (a normal permission, granted at install). -->
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- Only used when the user turns on live web suggestions in search. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -46,13 +46,13 @@
     </queries>
 
     <application
-        android:name=".DriftlistApp"
+        android:name=".LetterlineApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Driftlist"
+        android:theme="@style/Theme.Letterline"
         tools:targetApi="37">
 
         <activity
@@ -77,15 +77,15 @@
         <activity
             android:name=".ui.settings.SettingsActivity"
             android:exported="false"
-            android:label="Driftlist settings"
-            android:taskAffinity="dev.farjad.driftlist.settings"
-            android:theme="@style/Theme.Driftlist.Settings" />
+            android:label="Letterline settings"
+            android:taskAffinity="dev.farjad.letterline.settings"
+            android:theme="@style/Theme.Letterline.Settings" />
 
         <!-- Quick Lock: double-tap the alphabet to turn the screen off. Reads no events or content. -->
         <service
             android:name=".system.QuickLockService"
             android:exported="false"
-            android:label="Driftlist Quick Lock"
+            android:label="Letterline Quick Lock"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
@@ -111,7 +111,7 @@
             android:exported="false" />
 
         <service
-            android:name=".system.notifications.DriftNotificationListener"
+            android:name=".system.notifications.LetterlineNotificationListener"
             android:exported="true"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">

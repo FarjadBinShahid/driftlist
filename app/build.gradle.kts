@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.farjad.driftlist"
+    namespace = "dev.farjad.letterline"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "dev.farjad.driftlist"
+        applicationId = "dev.farjad.letterline"
         minSdk = 26
         targetSdk = 37
         versionCode = 3
@@ -109,7 +109,7 @@ dependencies {
 }
 
 // --- F1: no trackers, ever -------------------------------------------------------------------
-// Driftlist's promise is "nothing leaves your phone". This fails every build if a known analytics,
+// Letterline's promise is "nothing leaves your phone". This fails every build if a known analytics,
 // advertising, crash-reporting or attribution library ever lands on the app's runtime classpath,
 // directly or through another dependency.
 val trackerPrefixes = listOf(

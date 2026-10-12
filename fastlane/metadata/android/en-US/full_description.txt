@@ -1,13 +1,13 @@
-<p>Driftlist is a calm, list-first home screen. Your favorite apps sit within thumb reach, and every other app is one slide along the alphabet on the edge of the screen.</p>
+<p>Letterline is a calm, list-first home screen. Your favorite apps sit within thumb reach, and every other app is one slide along the alphabet on the edge of the screen.</p>
 <p><b>Everything is free.</b> Themes, fonts, clock styles, widget stacks, double-tap to turn the screen off: there is no paid version.</p>
-<p><b>Private by design.</b> No accounts, no analytics, no ads. Driftlist makes no network requests unless you turn on live web suggestions in search. Every build is checked so no tracking library can slip in.</p>
+<p><b>Private by design.</b> No accounts, no analytics, no ads. Letterline makes no network requests unless you turn on live web suggestions in search. Every build is checked so no tracking library can slip in.</p>
 <ul>
 <li>Favorites as a list or a grid, aligned left, centre or right</li>
 <li>Notifications next to their apps: read, reply and dismiss from home</li>
 <li>Pop-ups with app shortcuts, other apps and widgets</li>
 <li>Search with a calculator, contacts and typo tolerance</li>
 <li>Calendar agenda, music card, widget stacks</li>
-<li>Theme Studio with 11 bundled open fonts, wallpapers drawn by Driftlist, and accent colours from your wallpaper</li>
+<li>Theme Studio with 11 bundled open fonts, wallpapers drawn by Letterline, and accent colours from your wallpaper</li>
 <li>Time checks and Notification Summary to help you use your phone less</li>
 <li>Left-handed mode, landscape and tablet layouts, work profiles</li>
 </ul>

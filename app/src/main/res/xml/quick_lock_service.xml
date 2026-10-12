@@ -6,4 +6,4 @@
     android:canRetrieveWindowContent="false"
     android:description="@string/quick_lock_description"
     android:notificationTimeout="0"
-    android:packageNames="dev.farjad.driftlist.none" />
+    android:packageNames="dev.farjad.letterline.none" />

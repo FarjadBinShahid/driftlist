@@ -1,6 +1,6 @@
-# Driftlist privacy
+# Letterline privacy
 
-Driftlist is a home screen. It can see a lot (your apps, your notifications, your calendar if you allow it), so this page says exactly what it does with that.
+Letterline is a home screen. It can see a lot (your apps, your notifications, your calendar if you allow it), so this page says exactly what it does with that.
 
 **Nothing leaves your phone unless you turn on web suggestions.**
 
@@ -20,6 +20,6 @@ Driftlist is a home screen. It can see a lot (your apps, your notifications, you
 | Accessibility service | Quick Lock (double-tap to turn the screen off). It reads nothing on screen | Only if you switch it on in Android's settings |
 | Internet | Live web suggestions | Only if you turn them on |
 | Query all packages | Listing your apps, icon packs and widgets: it's a launcher | Always |
-| Set wallpaper | Driftlist's own wallpapers | When you pick one |
+| Set wallpaper | Letterline's own wallpapers | When you pick one |
 
 Notification text, calendar events and contacts are read when they're shown and never stored, except notifications you choose to hold for Notification Summary, which wait on the phone until they're delivered.

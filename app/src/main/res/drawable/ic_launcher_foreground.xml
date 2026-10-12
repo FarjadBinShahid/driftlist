@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Letterline mark: a short list, and beside it the letter line bowing out to meet the thumb,
+     with the touched letter lit. Kept inside the 66dp safe circle of the 108dp adaptive canvas. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#E4E9FB" android:pathData="M36,41h30a3,3 0,0 1,0 6h-30a3,3 0,0 1,0 -6z" />
-    <path android:fillColor="#E4E9FB" android:pathData="M36,51h22a3,3 0,0 1,0 6h-22a3,3 0,0 1,0 -6z" />
-    <path android:fillColor="#E4E9FB" android:pathData="M36,61h14a3,3 0,0 1,0 6h-14a3,3 0,0 1,0 -6z" />
-    <path android:fillColor="#9DB0FF" android:pathData="M72,64m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+    <!-- list -->
+    <path android:fillColor="#F4F1E8" android:pathData="M35,41h26a3,3 0,0 1,0 6h-26a3,3 0,0 1,0 -6z" />
+    <path android:fillColor="#F4F1E8" android:pathData="M35,51h18a3,3 0,0 1,0 6h-18a3,3 0,0 1,0 -6z" />
+    <path android:fillColor="#F4F1E8" android:pathData="M35,61h10a3,3 0,0 1,0 6h-10a3,3 0,0 1,0 -6z" />
+    <!-- the letter line -->
+    <path android:fillColor="#F4F1E8" android:pathData="M75,36m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#F4F1E8" android:pathData="M72,45m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#B9E3C9" android:pathData="M65,54m-4.4,0a4.4,4.4 0,1 1,8.8 0a4.4,4.4 0,1 1,-8.8 0" />
+    <path android:fillColor="#F4F1E8" android:pathData="M72,63m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
+    <path android:fillColor="#F4F1E8" android:pathData="M75,72m-2.6,0a2.6,2.6 0,1 1,5.2 0a2.6,2.6 0,1 1,-5.2 0" />
 </vector>

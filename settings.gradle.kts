@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Driftlist"
+rootProject.name = "Letterline"
 include(":app")
